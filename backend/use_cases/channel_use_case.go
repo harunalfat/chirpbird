@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/harunalfat/chirpbird/backend/entities"
 	"github.com/harunalfat/chirpbird/backend/presentation/persistence"
 )
@@ -20,7 +21,7 @@ func NewChannelUseCase(channelRepo persistence.ChannelRepository, messageUseCase
 	}
 }
 
-func (uc *ChannelUseCase) Fetch(ctx context.Context, id string) (entities.Channel, error) {
+func (uc *ChannelUseCase) Fetch(ctx context.Context, id uuid.UUID) (entities.Channel, error) {
 	return uc.channelRepo.Fetch(ctx, id)
 }
 
@@ -28,11 +29,11 @@ func (uc *ChannelUseCase) FetchByName(ctx context.Context, name string) (entitie
 	return uc.channelRepo.FetchByName(ctx, name)
 }
 
-func (uc *ChannelUseCase) UpdateChannelWithMessage(ctx context.Context, senderID string, channelID string, message string) error {
+func (uc *ChannelUseCase) UpdateChannelWithMessage(ctx context.Context, senderID uuid.UUID, channelID uuid.UUID, message string) error {
 	input := entities.Message{
-		SenderID:  senderID,
+		Sender:    entities.User{},
 		ChannelID: channelID,
-		Text:      message,
+		Data:      message,
 		Base: entities.Base{
 			CreatedAt: time.Now(),
 		},

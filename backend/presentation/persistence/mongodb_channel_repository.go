@@ -32,7 +32,7 @@ func (repo *MongodbChannelRepository) Fetch(ctx context.Context, channelID uuid.
 	filter := bson.D{{Key: "id", Value: channelID}}
 
 	err := repo.client.
-		Database(DB_GENERAL).
+		Database(DB_NAME).
 		Collection(COLLECTION_CHANNEL).
 		FindOne(ctx, filter).
 		Decode(&channel)
@@ -45,7 +45,7 @@ func (repo *MongodbChannelRepository) FetchByName(ctx context.Context, channelNa
 	filter := bson.D{{Key: "name", Value: channelName}}
 
 	err := repo.client.
-		Database(DB_GENERAL).
+		Database(DB_NAME).
 		Collection(COLLECTION_CHANNEL).
 		FindOne(ctx, filter).
 		Decode(&channel)
@@ -55,7 +55,7 @@ func (repo *MongodbChannelRepository) FetchByName(ctx context.Context, channelNa
 
 func (repo *MongodbChannelRepository) Insert(ctx context.Context, channelArg entities.Channel) (entities.Channel, error) {
 	_, err := repo.client.
-		Database(DB_GENERAL).
+		Database(DB_NAME).
 		Collection(COLLECTION_CHANNEL).
 		InsertOne(ctx, channelArg)
 	if err != nil {
@@ -76,6 +76,6 @@ func (repo *MongodbChannelRepository) Update(ctx context.Context, channelID uuid
 		Key: "$set", Value: channel,
 	}}
 
-	_, err := repo.client.Database(DB_GENERAL).Collection(COLLECTION_CHANNEL).UpdateOne(ctx, filter, update)
+	_, err := repo.client.Database(DB_NAME).Collection(COLLECTION_CHANNEL).UpdateOne(ctx, filter, update)
 	return channel, err
 }

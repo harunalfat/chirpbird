@@ -9,16 +9,16 @@ import (
 
 	"github.com/harunalfat/chirpbird/backend/presentation/web/handlers"
 	usecases "github.com/harunalfat/chirpbird/backend/use_cases"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func NewApp() (*App, error) {
+func NewApp(mongoClient *mongo.Client) (*App, error) {
 	wire.Build(
 		wire.Struct(new(App), "*"),
 		handlers.NewRestHandler,
 		handlers.NewWSHandler,
 		handlers.NewCentrifugeNode,
 
-		persistence.NewMongoClient,
 		persistence.NewMongodbMessageRepository,
 		persistence.NewMongodbUserRepository,
 		persistence.NewMongodbChannelRepository,

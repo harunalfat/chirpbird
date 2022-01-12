@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/centrifugal/centrifuge"
+	"github.com/google/uuid"
 	"github.com/harunalfat/chirpbird/backend/entities"
 	usecases "github.com/harunalfat/chirpbird/backend/use_cases"
 )
@@ -45,10 +46,9 @@ func (handler *WSHandler) auth(rw http.ResponseWriter, r *http.Request) {
 		jsonError(rw, http.StatusBadRequest, err)
 		return
 	}
-	log.Println(user)
 
 	cred := &centrifuge.Credentials{
-		UserID: user.ID,
+		UserID: user.ID.String(),
 	}
 
 	// request's context need to be set with Centrifuge credentials
@@ -64,21 +64,22 @@ func (handler *WSHandler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 }
 
 func (handler *WSHandler) newConnectionProcedure(c *centrifuge.Client) error {
-	log.Printf("Successfully open connection for client [%s]", c.UserID())
-	user, err := handler.userUseCase.Fetch(c.Context(), c.UserID())
+	userID := uuid.MustParse(c.UserID())
+	log.Printf("Successfully open connection for client [%s]", userID)
+	user, err := handler.userUseCase.Fetch(c.Context(), userID)
 	if err != nil {
 		return err
 	}
 
 	for _, channelID := range user.ChannelIDs {
-		if err = handler.userUseCase.SubsribeUserConnectionToChannel(c.Context(), c.UserID(), channelID); err != nil {
-			log.Printf("Cannot subscribe client [%s] connection to channel [%s]", c.UserID(), channelID)
+		if err = handler.userUseCase.SubsribeUserConnectionToChannel(c.Context(), userID, channelID); err != nil {
+			log.Printf("Cannot subscribe client [%s] connection to channel [%s]", userID, channelID)
 		}
 	}
 
 	for _, channelID := range user.ChannelIDs {
 		log.Printf("PUBLISH AH %s", channelID)
-		handler.node.Publish(channelID, []byte("dataa"))
+		handler.node.Publish(channelID.String(), []byte("dataa"))
 	}
 
 	return nil
@@ -102,8 +103,10 @@ func (handler *WSHandler) handleClientCallbacks(c *centrifuge.Client) {
 	})
 
 	c.OnPublish(func(pe centrifuge.PublishEvent, pc centrifuge.PublishCallback) {
-		log.Printf("Publish '%s' received from [%s] to channel [%s]", pe.Data, c.UserID(), pe.Channel)
-		err := handler.channelUseCase.UpdateChannelWithMessage(c.Context(), c.UserID(), pe.Channel, string(pe.Data))
+		userID := uuid.MustParse(c.UserID())
+		channelID := uuid.MustParse(pe.Channel)
+		log.Printf("Publish '%s' received from [%s] to channel [%s]", pe.Data, userID, channelID)
+		err := handler.channelUseCase.UpdateChannelWithMessage(c.Context(), userID, channelID, string(pe.Data))
 		if err != nil {
 			log.Printf("Failed to process message!\n%s", err)
 		}

@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/harunalfat/chirpbird/backend/env"
+	"github.com/harunalfat/chirpbird/backend/presentation/persistence"
 	"github.com/harunalfat/chirpbird/backend/presentation/web/handlers"
 	"github.com/joho/godotenv"
 )
@@ -39,7 +40,9 @@ func main() {
 		log.Fatalf("Failed to initialize environment variables\n%s", err)
 	}
 
-	app, err := NewApp()
+	mongoClient := persistence.MongoDBInit()
+
+	app, err := NewApp(mongoClient)
 	if err != nil {
 		log.Fatalf("Failed to prepare application\n%s", err)
 	}

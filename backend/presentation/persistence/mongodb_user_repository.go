@@ -37,7 +37,7 @@ func (repo *MongodbUserRepository) Fetch(ctx context.Context, userID uuid.UUID) 
 	var user entities.User
 	filter := bson.D{{Key: ID, Value: userID}}
 	err := repo.client.
-		Database(DB_GENERAL).
+		Database(DB_NAME).
 		Collection(COLLECTION_USER).
 		FindOne(ctx, filter).
 		Decode(&user)
@@ -49,7 +49,7 @@ func (repo *MongodbUserRepository) FetchByUsername(ctx context.Context, username
 	var user entities.User
 	filter := bson.D{{Key: USERNAME, Value: username}}
 	err := repo.client.
-		Database(DB_GENERAL).
+		Database(DB_NAME).
 		Collection(COLLECTION_USER).
 		FindOne(ctx, filter).
 		Decode(&user)
@@ -68,7 +68,7 @@ func (repo *MongodbUserRepository) FetchMultiple(ctx context.Context, userIDs []
 	}}
 
 	cursor, err := repo.client.
-		Database(DB_GENERAL).
+		Database(DB_NAME).
 		Collection(COLLECTION_USER).
 		Find(ctx, filter)
 	if err != nil {
@@ -85,7 +85,7 @@ func (repo *MongodbUserRepository) Update(ctx context.Context, userID uuid.UUID,
 		Key: "$set", Value: updated,
 	}}
 	err := repo.client.
-		Database(DB_GENERAL).
+		Database(DB_NAME).
 		Collection(COLLECTION_USER).
 		FindOneAndUpdate(ctx, filter, update).
 		Decode(&updated)
@@ -95,7 +95,7 @@ func (repo *MongodbUserRepository) Update(ctx context.Context, userID uuid.UUID,
 
 func (repo *MongodbUserRepository) Insert(ctx context.Context, userArg entities.User) (entities.User, error) {
 	_, err := repo.client.
-		Database(DB_GENERAL).
+		Database(DB_NAME).
 		Collection(COLLECTION_USER).
 		InsertOne(ctx, userArg)
 	if err != nil {

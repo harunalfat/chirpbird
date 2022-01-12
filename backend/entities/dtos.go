@@ -1,6 +1,8 @@
 package entities
 
+import "github.com/google/uuid"
+
 type InvitePayload struct {
-	UserIDs   []string `json:"userIds"`
-	ChannelID string   `json:"channelID"`
+	UserIDs   []uuid.UUID `json:"userIds"`
+	ChannelID uuid.UUID   `json:"channelID"`
 }

@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/google/uuid"
 	"github.com/harunalfat/chirpbird/backend/entities"
 	"github.com/harunalfat/chirpbird/backend/presentation/web"
 	usecases "github.com/harunalfat/chirpbird/backend/use_cases"
@@ -71,7 +72,7 @@ func (handler *RestHandler) CreateChannel(rw http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	userID := r.URL.Query().Get("userId")
+	userID := uuid.MustParse(r.URL.Query().Get("userId"))
 	creator, err := handler.userUseCase.Fetch(r.Context(), userID)
 	if err != nil {
 		jsonError(rw, http.StatusBadRequest, err)
@@ -105,9 +106,9 @@ func (handler *RestHandler) InviteToChannel(rw http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	for _, username := range payload.UserIDs {
-		if err = handler.userUseCase.SubsribeUserConnectionToChannel(r.Context(), username, payload.ChannelID); err != nil {
-			log.Printf("Failed to subsribe client [%s] to channel [%s]", username, payload.ChannelID)
+	for _, userID := range payload.UserIDs {
+		if err = handler.userUseCase.SubsribeUserConnectionToChannel(r.Context(), userID, payload.ChannelID); err != nil {
+			log.Printf("Failed to subsribe client [%s] to channel [%s]", userID, payload.ChannelID)
 		}
 	}
 	jsonResponse(rw, http.StatusOK, "ok")

@@ -10,17 +10,14 @@ import (
 	"github.com/harunalfat/chirpbird/backend/presentation/persistence"
 	"github.com/harunalfat/chirpbird/backend/presentation/web/handlers"
 	"github.com/harunalfat/chirpbird/backend/use_cases"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 // Injectors from wire.go:
 
-func NewApp() (*App, error) {
-	client, err := persistence.NewMongoClient()
-	if err != nil {
-		return nil, err
-	}
-	channelRepository := persistence.NewMongodbChannelRepository(client)
-	messageRepository := persistence.NewMongodbMessageRepository(client)
+func NewApp(mongoClient *mongo.Client) (*App, error) {
+	channelRepository := persistence.NewMongodbChannelRepository(mongoClient)
+	messageRepository := persistence.NewMongodbMessageRepository(mongoClient)
 	messageUseCase := usecases.NewMessageUseCase(messageRepository)
 	channelUseCase := usecases.NewChannelUseCase(channelRepository, messageUseCase)
 	node, err := handlers.NewCentrifugeNode()
@@ -28,7 +25,7 @@ func NewApp() (*App, error) {
 		return nil, err
 	}
 	nodeWrapper := usecases.NewNodeWrapperImpl(node)
-	userRepository := persistence.NewMongodbUserRepository(client)
+	userRepository := persistence.NewMongodbUserRepository(mongoClient)
 	userUseCase := usecases.NewUserUseCase(channelUseCase, nodeWrapper, userRepository)
 	restHandler := handlers.NewRestHandler(channelUseCase, userUseCase)
 	wsHandler := handlers.NewWSHandler(channelUseCase, node, userUseCase)

@@ -1,8 +1,21 @@
 package helpers
 
-import "go.mongodb.org/mongo-driver/bson/primitive"
+import (
+	"github.com/google/uuid"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+)
 
 func IsExistsInStringArray(data []string, searchFor string) bool {
+	for _, d := range data {
+		if searchFor == d {
+			return true
+		}
+	}
+
+	return false
+}
+
+func IsExistsInUUIDArray(data []uuid.UUID, searchFor uuid.UUID) bool {
 	for _, d := range data {
 		if searchFor == d {
 			return true

@@ -34,7 +34,7 @@ func (repo *MongodbMessageRepository) FetchFromGroup(ctx context.Context, groupI
 }
 
 func (repo *MongodbMessageRepository) Insert(ctx context.Context, msgArg entities.Message) (entities.Message, error) {
-	_, err := repo.client.Database(CHAT).Collection(msgArg.ChannelID).InsertOne(ctx, msgArg)
+	_, err := repo.client.Database(CHAT).Collection(msgArg.ChannelID.String()).InsertOne(ctx, msgArg)
 	if err != nil {
 		return entities.Message{}, err
 	}
