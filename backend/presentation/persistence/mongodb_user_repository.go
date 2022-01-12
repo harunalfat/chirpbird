@@ -1,14 +1,12 @@
-package mongodb
+package persistence
 
 import (
 	"context"
 	"log"
 
+	"github.com/google/uuid"
 	"github.com/harunalfat/chirpbird/backend/entities"
-	"github.com/harunalfat/chirpbird/backend/helpers"
-	"github.com/harunalfat/chirpbird/backend/presentation/persistence"
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -17,30 +15,38 @@ const (
 	USERNAME = "username"
 )
 
+type UserRepository interface {
+	Fetch(ctx context.Context, userID uuid.UUID) (entities.User, error)
+	FetchByUsername(ctx context.Context, username string) (entities.User, error)
+	FetchMultiple(context.Context, []uuid.UUID) ([]entities.User, error)
+	Update(ctx context.Context, userID uuid.UUID, updated entities.User) (entities.User, error)
+	Insert(context.Context, entities.User) (entities.User, error)
+}
+
 type MongodbUserRepository struct {
 	client *mongo.Client
 }
 
-func NewMongodbUserRepository(client *mongo.Client) persistence.UserRepository {
+func NewMongodbUserRepository(client *mongo.Client) UserRepository {
 	return &MongodbUserRepository{
 		client,
 	}
 }
 
-func (repo *MongodbUserRepository) Fetch(ctx context.Context, userIDHex string) (entities.User, error) {
-	var user userDTO
-	filter := bson.D{{Key: ID, Value: helpers.ObjectIDFromHex(userIDHex)}}
+func (repo *MongodbUserRepository) Fetch(ctx context.Context, userID uuid.UUID) (entities.User, error) {
+	var user entities.User
+	filter := bson.D{{Key: ID, Value: userID}}
 	err := repo.client.
 		Database(DB_GENERAL).
 		Collection(COLLECTION_USER).
 		FindOne(ctx, filter).
 		Decode(&user)
-	log.Println(user)
-	return user.ToEntity(), err
+
+	return user, err
 }
 
 func (repo *MongodbUserRepository) FetchByUsername(ctx context.Context, username string) (entities.User, error) {
-	var user userDTO
+	var user entities.User
 	filter := bson.D{{Key: USERNAME, Value: username}}
 	err := repo.client.
 		Database(DB_GENERAL).
@@ -48,16 +54,16 @@ func (repo *MongodbUserRepository) FetchByUsername(ctx context.Context, username
 		FindOne(ctx, filter).
 		Decode(&user)
 
-	return user.ToEntity(), err
+	return user, err
 }
 
-func (repo *MongodbUserRepository) FetchMultiple(ctx context.Context, userIDHexes []string) ([]entities.User, error) {
-	var users userDTOs
+func (repo *MongodbUserRepository) FetchMultiple(ctx context.Context, userIDs []uuid.UUID) ([]entities.User, error) {
+	var users []entities.User
 	filter := bson.D{{
 		Key: ID,
 		Value: bson.D{{
 			Key:   "$in",
-			Value: helpers.ObjectIDsFromHexes(userIDHexes),
+			Value: userIDs,
 		}},
 	}}
 
@@ -70,36 +76,32 @@ func (repo *MongodbUserRepository) FetchMultiple(ctx context.Context, userIDHexe
 	}
 
 	err = cursor.All(ctx, &users)
-	return users.ToEntity(), err
+	return users, err
 }
 
-func (repo *MongodbUserRepository) Update(ctx context.Context, userIDHex string, updated entities.User) (entities.User, error) {
-	var user userDTO
-	user.FromEntity(updated)
-
-	filter := bson.D{{Key: ID, Value: helpers.ObjectIDFromHex(userIDHex)}}
+func (repo *MongodbUserRepository) Update(ctx context.Context, userID uuid.UUID, updated entities.User) (entities.User, error) {
+	filter := bson.D{{Key: ID, Value: userID}}
+	update := bson.D{{
+		Key: "$set", Value: updated,
+	}}
 	err := repo.client.
 		Database(DB_GENERAL).
 		Collection(COLLECTION_USER).
-		FindOneAndUpdate(ctx, filter, user).
-		Decode(&user)
+		FindOneAndUpdate(ctx, filter, update).
+		Decode(&updated)
 
-	return user.ToEntity(), err
+	return updated, err
 }
 
 func (repo *MongodbUserRepository) Insert(ctx context.Context, userArg entities.User) (entities.User, error) {
-	var user userDTO
-	user.FromEntity(userArg)
-
-	res, err := repo.client.
+	_, err := repo.client.
 		Database(DB_GENERAL).
 		Collection(COLLECTION_USER).
-		InsertOne(ctx, user)
+		InsertOne(ctx, userArg)
 	if err != nil {
 		log.Printf("Failed to insert User\n%s", err)
 		return entities.User{}, nil
 	}
 
-	user.ID = res.InsertedID.(primitive.ObjectID)
-	return user.ToEntity(), nil
+	return userArg, nil
 }

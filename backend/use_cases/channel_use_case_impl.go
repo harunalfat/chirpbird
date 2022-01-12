@@ -1,4 +1,4 @@
-package implementations
+package usecases
 
 import (
 	"context"
@@ -6,30 +6,29 @@ import (
 
 	"github.com/harunalfat/chirpbird/backend/entities"
 	"github.com/harunalfat/chirpbird/backend/presentation/persistence"
-	usecases "github.com/harunalfat/chirpbird/backend/use_cases"
 )
 
-type ChannelUseCaseImpl struct {
+type ChannelUseCase struct {
 	channelRepo    persistence.ChannelRepository
-	messageUseCase usecases.MessageUseCase
+	messageUseCase *MessageUseCase
 }
 
-func NewChannelUseCaseImpl(channelRepo persistence.ChannelRepository, messageUseCase usecases.MessageUseCase) usecases.ChannelUseCase {
-	return &ChannelUseCaseImpl{
+func NewChannelUseCase(channelRepo persistence.ChannelRepository, messageUseCase *MessageUseCase) *ChannelUseCase {
+	return &ChannelUseCase{
 		channelRepo,
 		messageUseCase,
 	}
 }
 
-func (uc *ChannelUseCaseImpl) Fetch(ctx context.Context, id string) (entities.Channel, error) {
+func (uc *ChannelUseCase) Fetch(ctx context.Context, id string) (entities.Channel, error) {
 	return uc.channelRepo.Fetch(ctx, id)
 }
 
-func (uc *ChannelUseCaseImpl) FetchByName(ctx context.Context, name string) (entities.Channel, error) {
+func (uc *ChannelUseCase) FetchByName(ctx context.Context, name string) (entities.Channel, error) {
 	return uc.channelRepo.FetchByName(ctx, name)
 }
 
-func (uc *ChannelUseCaseImpl) UpdateChannelWithMessage(ctx context.Context, senderID string, channelID string, message string) error {
+func (uc *ChannelUseCase) UpdateChannelWithMessage(ctx context.Context, senderID string, channelID string, message string) error {
 	input := entities.Message{
 		SenderID:  senderID,
 		ChannelID: channelID,
@@ -52,7 +51,7 @@ func (uc *ChannelUseCaseImpl) UpdateChannelWithMessage(ctx context.Context, send
 	return err
 }
 
-func (uc *ChannelUseCaseImpl) Create(ctx context.Context, channel entities.Channel, creator entities.User) (entities.Channel, error) {
+func (uc *ChannelUseCase) Create(ctx context.Context, channel entities.Channel, creator entities.User) (entities.Channel, error) {
 	channel.CreatorID = creator.ID
 	return uc.channelRepo.Insert(ctx, channel)
 }

@@ -1,13 +1,11 @@
-package mongodb
+package persistence
 
 import (
 	"context"
 	"log"
 	"os"
-	"time"
 
 	"github.com/harunalfat/chirpbird/backend/env"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
@@ -19,12 +17,6 @@ const (
 	COLLECTION_USER    = "user"
 	COLLECTION_CHANNEL = "channel"
 )
-
-type BaseDTO struct {
-	ID        primitive.ObjectID `bson:"_id,omitempty"`
-	CreatedAt time.Time          `bson:"created,omitempty"`
-	UpdatedAt time.Time          `bson:"updatedAt,omitempty"`
-}
 
 func NewMongoClient() (*mongo.Client, error) {
 	clientOps := options.Client().ApplyURI(os.Getenv(env.MONGODB_CONN_URL))

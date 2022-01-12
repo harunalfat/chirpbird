@@ -37,15 +37,31 @@ func jsonResponse(rw http.ResponseWriter, code, data interface{}) {
 }
 
 type RestHandler struct {
-	channelUseCase usecases.ChannelUseCase
-	userUseCase    usecases.UserUseCase
+	channelUseCase *usecases.ChannelUseCase
+	userUseCase    *usecases.UserUseCase
 }
 
-func NewRestHandlerImpl(channelUseCase usecases.ChannelUseCase, userUseCase usecases.UserUseCase) *RestHandler {
+func NewRestHandler(channelUseCase *usecases.ChannelUseCase, userUseCase *usecases.UserUseCase) *RestHandler {
 	return &RestHandler{
 		channelUseCase,
 		userUseCase,
 	}
+}
+
+func (handler *RestHandler) RegisterUser(rw http.ResponseWriter, r *http.Request) {
+	var user entities.User
+	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
+		jsonError(rw, http.StatusBadRequest, err)
+		return
+	}
+
+	user, err := handler.userUseCase.CreateIfUsernameNotExist(r.Context(), user)
+	if err != nil {
+		jsonError(rw, http.StatusBadRequest, err)
+		return
+	}
+
+	jsonResponse(rw, http.StatusCreated, user)
 }
 
 func (handler *RestHandler) CreateChannel(rw http.ResponseWriter, r *http.Request) {

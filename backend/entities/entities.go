@@ -1,20 +1,20 @@
 package entities
 
 type User struct {
-	Base
-	Username   string   `json:"username"`
-	ChannelIDs []string `json:"channelIds"`
+	Base       `bson:",inline"`
+	Username   string   `json:"username,omitempty" bson:"username,omitempty"`
+	ChannelIDs []string `json:"channelIds,omitempty" bson:"channelIds,omitempty"`
 }
 
 type Channel struct {
-	Base
-	Name      string `json:"name"`
-	CreatorID string `json:"creatorId"`
+	Base      `bson:",inline"`
+	Name      string `json:"name,omitempty"`
+	CreatorID string `json:"creatorId,omitempty"`
 }
 
 type Message struct {
-	Base
-	SenderID  string `json:"senderId"`
-	ChannelID string `json:"channelId"`
-	Text      string `json:"text"`
+	Base      `bson:",inline"`
+	SenderID  string `json:"senderId,omitempty"`
+	ChannelID string `json:"channelId,omitempty"`
+	Data      string `json:"text,omitempty"`
 }

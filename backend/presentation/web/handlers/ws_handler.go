@@ -18,16 +18,16 @@ const (
 var wsHandler http.Handler
 
 type WSHandler struct {
-	channelUseCase usecases.ChannelUseCase
+	channelUseCase *usecases.ChannelUseCase
 	node           *centrifuge.Node
-	userUseCase    usecases.UserUseCase
+	userUseCase    *usecases.UserUseCase
 }
 
 func NewCentrifugeNode() (*centrifuge.Node, error) {
 	return centrifuge.New(centrifuge.DefaultConfig)
 }
 
-func NewCentrifugeHandler(channelUseCase usecases.ChannelUseCase, node *centrifuge.Node, userUseCase usecases.UserUseCase) *WSHandler {
+func NewWSHandler(channelUseCase *usecases.ChannelUseCase, node *centrifuge.Node, userUseCase *usecases.UserUseCase) *WSHandler {
 	return &WSHandler{
 		channelUseCase,
 		node,

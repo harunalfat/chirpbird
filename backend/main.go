@@ -26,6 +26,7 @@ func (app *App) run() {
 
 	router.GET("/connection/websocket", gin.WrapH(app.wsHandler))
 
+	router.POST("/users", gin.WrapF(app.restHandler.RegisterUser))
 	router.POST("/channels", gin.WrapF(app.restHandler.CreateChannel))
 	router.POST("/channels/invite", gin.WrapF(app.restHandler.InviteToChannel))
 

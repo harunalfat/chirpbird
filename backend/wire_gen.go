@@ -7,31 +7,31 @@
 package main
 
 import (
-	"github.com/harunalfat/chirpbird/backend/presentation/persistence/implementations/mongodb"
+	"github.com/harunalfat/chirpbird/backend/presentation/persistence"
 	"github.com/harunalfat/chirpbird/backend/presentation/web/handlers"
-	"github.com/harunalfat/chirpbird/backend/use_cases/implementations"
+	"github.com/harunalfat/chirpbird/backend/use_cases"
 )
 
 // Injectors from wire.go:
 
 func NewApp() (*App, error) {
-	client, err := mongodb.NewMongoClient()
+	client, err := persistence.NewMongoClient()
 	if err != nil {
 		return nil, err
 	}
-	channelRepository := mongodb.NewMongodbChannelRepository(client)
-	messageRepository := mongodb.NewMongodbMessageRepository(client)
-	messageUseCase := implementations.NewMessageUseCaseImpl(messageRepository)
-	channelUseCase := implementations.NewChannelUseCaseImpl(channelRepository, messageUseCase)
+	channelRepository := persistence.NewMongodbChannelRepository(client)
+	messageRepository := persistence.NewMongodbMessageRepository(client)
+	messageUseCase := usecases.NewMessageUseCase(messageRepository)
+	channelUseCase := usecases.NewChannelUseCase(channelRepository, messageUseCase)
 	node, err := handlers.NewCentrifugeNode()
 	if err != nil {
 		return nil, err
 	}
-	nodeWrapper := implementations.NewNodeWrapperImpl(node)
-	userRepository := mongodb.NewMongodbUserRepository(client)
-	userUseCase := implementations.NewUserUseCaseImpl(channelUseCase, nodeWrapper, userRepository)
-	restHandler := handlers.NewRestHandlerImpl(channelUseCase, userUseCase)
-	wsHandler := handlers.NewCentrifugeHandler(channelUseCase, node, userUseCase)
+	nodeWrapper := usecases.NewNodeWrapperImpl(node)
+	userRepository := persistence.NewMongodbUserRepository(client)
+	userUseCase := usecases.NewUserUseCase(channelUseCase, nodeWrapper, userRepository)
+	restHandler := handlers.NewRestHandler(channelUseCase, userUseCase)
+	wsHandler := handlers.NewWSHandler(channelUseCase, node, userUseCase)
 	app := &App{
 		restHandler: restHandler,
 		wsHandler:   wsHandler,
