@@ -2,11 +2,13 @@ package usecases
 
 import (
 	"context"
+	"crypto/sha256"
+	"fmt"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/harunalfat/chirpbird/backend/entities"
 	"github.com/harunalfat/chirpbird/backend/presentation/persistence"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type ChannelUseCase struct {
@@ -21,7 +23,7 @@ func NewChannelUseCase(channelRepo persistence.ChannelRepository, messageUseCase
 	}
 }
 
-func (uc *ChannelUseCase) Fetch(ctx context.Context, id uuid.UUID) (entities.Channel, error) {
+func (uc *ChannelUseCase) Fetch(ctx context.Context, id string) (entities.Channel, error) {
 	return uc.channelRepo.Fetch(ctx, id)
 }
 
@@ -29,9 +31,13 @@ func (uc *ChannelUseCase) FetchByName(ctx context.Context, name string) (entitie
 	return uc.channelRepo.FetchByName(ctx, name)
 }
 
-func (uc *ChannelUseCase) UpdateChannelWithMessage(ctx context.Context, senderID uuid.UUID, channelID uuid.UUID, message string) error {
+func (uc *ChannelUseCase) UpdateChannelWithMessage(ctx context.Context, senderID string, channelID string, message string) error {
 	input := entities.Message{
-		Sender:    entities.User{},
+		Sender: entities.User{
+			Base: entities.Base{
+				ID: senderID,
+			},
+		},
 		ChannelID: channelID,
 		Data:      message,
 		Base: entities.Base{
@@ -52,7 +58,23 @@ func (uc *ChannelUseCase) UpdateChannelWithMessage(ctx context.Context, senderID
 	return err
 }
 
-func (uc *ChannelUseCase) Create(ctx context.Context, channel entities.Channel, creator entities.User) (entities.Channel, error) {
-	channel.CreatorID = creator.ID
-	return uc.channelRepo.Insert(ctx, channel)
+func (uc *ChannelUseCase) CreateIfNameNotExist(ctx context.Context, channel entities.Channel, creator entities.User) (result entities.Channel, err error) {
+	result, err = uc.channelRepo.FetchByName(ctx, channel.Name)
+	if err != nil && err != mongo.ErrNoDocuments {
+		return entities.Channel{}, err
+	}
+
+	if result.Name == "" {
+		channel.CreatorID = creator.ID
+		channel.CreatedAt = time.Now()
+		hash := sha256.Sum256([]byte(channel.Name))
+		channel.HashIdentifier = fmt.Sprintf("%x", hash[:])
+
+		result, err = uc.channelRepo.Insert(ctx, channel)
+		if err != nil {
+			return entities.Channel{}, err
+		}
+	}
+
+	return result, err
 }

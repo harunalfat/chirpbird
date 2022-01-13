@@ -11,10 +11,10 @@ import (
 )
 
 type ChannelRepository interface {
-	Fetch(ctx context.Context, channelID uuid.UUID) (entities.Channel, error)
+	Fetch(ctx context.Context, channelID string) (entities.Channel, error)
 	FetchByName(ctx context.Context, channelName string) (entities.Channel, error)
 	Insert(context.Context, entities.Channel) (entities.Channel, error)
-	Update(ctx context.Context, channelID uuid.UUID, updated entities.Channel) (entities.Channel, error)
+	Update(ctx context.Context, channelID string, updated entities.Channel) (entities.Channel, error)
 }
 
 type MongodbChannelRepository struct {
@@ -27,7 +27,7 @@ func NewMongodbChannelRepository(client *mongo.Client) ChannelRepository {
 	}
 }
 
-func (repo *MongodbChannelRepository) Fetch(ctx context.Context, channelID uuid.UUID) (entities.Channel, error) {
+func (repo *MongodbChannelRepository) Fetch(ctx context.Context, channelID string) (entities.Channel, error) {
 	var channel entities.Channel
 	filter := bson.D{{Key: "id", Value: channelID}}
 
@@ -54,6 +54,9 @@ func (repo *MongodbChannelRepository) FetchByName(ctx context.Context, channelNa
 }
 
 func (repo *MongodbChannelRepository) Insert(ctx context.Context, channelArg entities.Channel) (entities.Channel, error) {
+	channelArg.ID = uuid.New().String()
+	channelArg.CreatedAt = time.Now()
+
 	_, err := repo.client.
 		Database(DB_NAME).
 		Collection(COLLECTION_CHANNEL).
@@ -65,7 +68,7 @@ func (repo *MongodbChannelRepository) Insert(ctx context.Context, channelArg ent
 	return channelArg, err
 }
 
-func (repo *MongodbChannelRepository) Update(ctx context.Context, channelID uuid.UUID, channel entities.Channel) (entities.Channel, error) {
+func (repo *MongodbChannelRepository) Update(ctx context.Context, channelID string, channel entities.Channel) (entities.Channel, error) {
 	channel.UpdatedAt = time.Now()
 
 	filter := bson.D{{

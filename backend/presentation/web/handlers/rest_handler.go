@@ -5,7 +5,6 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/google/uuid"
 	"github.com/harunalfat/chirpbird/backend/entities"
 	"github.com/harunalfat/chirpbird/backend/presentation/web"
 	usecases "github.com/harunalfat/chirpbird/backend/use_cases"
@@ -13,7 +12,6 @@ import (
 
 func jsonError(rw http.ResponseWriter, code int, errs ...error) {
 	rw.Header().Set("Content-Type", "application/json; charset=utf-8")
-	rw.Header().Set("X-Content-Type-Options", "nosniff")
 	rw.WriteHeader(code)
 
 	var errorStrings []string
@@ -28,9 +26,9 @@ func jsonError(rw http.ResponseWriter, code int, errs ...error) {
 	json.NewEncoder(rw).Encode(resp)
 }
 
-func jsonResponse(rw http.ResponseWriter, code, data interface{}) {
+func jsonResponse(rw http.ResponseWriter, code int, data interface{}) {
 	rw.Header().Set("Content-Type", "application/json; charset=utf-8")
-
+	rw.WriteHeader(code)
 	resp := web.Response{
 		Data: data,
 	}
@@ -39,12 +37,14 @@ func jsonResponse(rw http.ResponseWriter, code, data interface{}) {
 
 type RestHandler struct {
 	channelUseCase *usecases.ChannelUseCase
+	messageUseCase *usecases.MessageUseCase
 	userUseCase    *usecases.UserUseCase
 }
 
-func NewRestHandler(channelUseCase *usecases.ChannelUseCase, userUseCase *usecases.UserUseCase) *RestHandler {
+func NewRestHandler(channelUseCase *usecases.ChannelUseCase, messageUseCase *usecases.MessageUseCase, userUseCase *usecases.UserUseCase) *RestHandler {
 	return &RestHandler{
 		channelUseCase,
+		messageUseCase,
 		userUseCase,
 	}
 }
@@ -72,25 +72,31 @@ func (handler *RestHandler) CreateChannel(rw http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	userID := uuid.MustParse(r.URL.Query().Get("userId"))
+	userID := r.URL.Query().Get("userId")
 	creator, err := handler.userUseCase.Fetch(r.Context(), userID)
 	if err != nil {
 		jsonError(rw, http.StatusBadRequest, err)
 		return
 	}
 
-	inserted, err := handler.channelUseCase.Create(r.Context(), channel, creator)
+	created, err := handler.channelUseCase.CreateIfNameNotExist(r.Context(), channel, creator)
 	if err != nil {
 		jsonError(rw, http.StatusBadRequest, err)
 		return
 	}
 
-	if _, err = handler.userUseCase.EmbedChannelIfNotExist(r.Context(), creator, inserted); err != nil {
+	messages, err := handler.messageUseCase.FetchAllMessagesByChannel(r.Context(), created.ID)
+	if err != nil {
 		jsonError(rw, http.StatusBadRequest, err)
 		return
 	}
 
-	jsonResponse(rw, http.StatusCreated, map[string]interface{}{"channel": inserted})
+	if _, err = handler.userUseCase.EmbedChannelIfNotExist(r.Context(), creator, created); err != nil {
+		jsonError(rw, http.StatusBadRequest, err)
+		return
+	}
+
+	jsonResponse(rw, http.StatusCreated, map[string]interface{}{"channel": created, "messages": messages})
 }
 
 func (handler *RestHandler) InviteToChannel(rw http.ResponseWriter, r *http.Request) {

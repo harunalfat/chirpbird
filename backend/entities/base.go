@@ -2,12 +2,15 @@ package entities
 
 import (
 	"time"
-
-	"github.com/google/uuid"
 )
 
+type Entities interface {
+	GetLength() int
+	GetID(position int) string
+}
+
 type Base struct {
-	ID        uuid.UUID `json:"id" bson:"id"`
-	CreatedAt time.Time `json:"createdAt,omitempty" bson:"id,omitempty"`
-	UpdatedAt time.Time `json:"updatedAt,omitempty" bson:"id,omitempty"`
+	ID        string    `json:"id" bson:"id"`
+	CreatedAt time.Time `json:"createdAt,omitempty" bson:"createdAt,omitempty"`
+	UpdatedAt time.Time `json:"updatedAt,omitempty" bson:"updatedAt,omitempty"`
 }

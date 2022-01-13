@@ -3,6 +3,7 @@ package persistence
 import (
 	"context"
 	"log"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/harunalfat/chirpbird/backend/entities"
@@ -11,15 +12,15 @@ import (
 )
 
 const (
-	ID       = "_id"
+	ID       = "id"
 	USERNAME = "username"
 )
 
 type UserRepository interface {
-	Fetch(ctx context.Context, userID uuid.UUID) (entities.User, error)
+	Fetch(ctx context.Context, userID string) (entities.User, error)
 	FetchByUsername(ctx context.Context, username string) (entities.User, error)
-	FetchMultiple(context.Context, []uuid.UUID) ([]entities.User, error)
-	Update(ctx context.Context, userID uuid.UUID, updated entities.User) (entities.User, error)
+	FetchMultiple(context.Context, []string) ([]entities.User, error)
+	Update(ctx context.Context, userID string, updated entities.User) (entities.User, error)
 	Insert(context.Context, entities.User) (entities.User, error)
 }
 
@@ -33,7 +34,7 @@ func NewMongodbUserRepository(client *mongo.Client) UserRepository {
 	}
 }
 
-func (repo *MongodbUserRepository) Fetch(ctx context.Context, userID uuid.UUID) (entities.User, error) {
+func (repo *MongodbUserRepository) Fetch(ctx context.Context, userID string) (entities.User, error) {
 	var user entities.User
 	filter := bson.D{{Key: ID, Value: userID}}
 	err := repo.client.
@@ -57,7 +58,7 @@ func (repo *MongodbUserRepository) FetchByUsername(ctx context.Context, username
 	return user, err
 }
 
-func (repo *MongodbUserRepository) FetchMultiple(ctx context.Context, userIDs []uuid.UUID) ([]entities.User, error) {
+func (repo *MongodbUserRepository) FetchMultiple(ctx context.Context, userIDs []string) ([]entities.User, error) {
 	var users []entities.User
 	filter := bson.D{{
 		Key: ID,
@@ -79,7 +80,7 @@ func (repo *MongodbUserRepository) FetchMultiple(ctx context.Context, userIDs []
 	return users, err
 }
 
-func (repo *MongodbUserRepository) Update(ctx context.Context, userID uuid.UUID, updated entities.User) (entities.User, error) {
+func (repo *MongodbUserRepository) Update(ctx context.Context, userID string, updated entities.User) (entities.User, error) {
 	filter := bson.D{{Key: ID, Value: userID}}
 	update := bson.D{{
 		Key: "$set", Value: updated,
@@ -94,6 +95,9 @@ func (repo *MongodbUserRepository) Update(ctx context.Context, userID uuid.UUID,
 }
 
 func (repo *MongodbUserRepository) Insert(ctx context.Context, userArg entities.User) (entities.User, error) {
+	userArg.CreatedAt = time.Now()
+	userArg.ID = uuid.New().String()
+
 	_, err := repo.client.
 		Database(DB_NAME).
 		Collection(COLLECTION_USER).

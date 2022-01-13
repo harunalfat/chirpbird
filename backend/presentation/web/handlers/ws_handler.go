@@ -3,11 +3,11 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 
 	"github.com/centrifugal/centrifuge"
-	"github.com/google/uuid"
 	"github.com/harunalfat/chirpbird/backend/entities"
 	usecases "github.com/harunalfat/chirpbird/backend/use_cases"
 )
@@ -37,49 +37,39 @@ func NewWSHandler(channelUseCase *usecases.ChannelUseCase, node *centrifuge.Node
 }
 
 func (handler *WSHandler) auth(rw http.ResponseWriter, r *http.Request) {
-	username := r.URL.Query().Get("username")
-	user, err := handler.userUseCase.CreateIfUsernameNotExist(r.Context(), entities.User{
-		Username: username,
-	})
-	if err != nil {
-		log.Printf("Could not insert client\n%s", err)
-		jsonError(rw, http.StatusBadRequest, err)
-		return
-	}
-
+	userID := r.URL.Query().Get("userId")
 	cred := &centrifuge.Credentials{
-		UserID: user.ID.String(),
+		UserID: userID,
 	}
 
 	// request's context need to be set with Centrifuge credentials
 	// or else client handshake will be failed
 	newCtx := centrifuge.SetCredentials(r.Context(), cred)
-
-	r = r.WithContext(context.WithValue(newCtx, "username", username))
-	wsHandler.ServeHTTP(rw, r)
+	wsHandler.ServeHTTP(rw, r.WithContext(newCtx))
 }
 
-func (handler *WSHandler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
+func (handler *WSHandler) Serve(rw http.ResponseWriter, r *http.Request) {
 	handler.auth(rw, r)
 }
 
 func (handler *WSHandler) newConnectionProcedure(c *centrifuge.Client) error {
-	userID := uuid.MustParse(c.UserID())
+	userID := c.UserID()
+
 	log.Printf("Successfully open connection for client [%s]", userID)
 	user, err := handler.userUseCase.Fetch(c.Context(), userID)
 	if err != nil {
 		return err
 	}
 
-	for _, channelID := range user.ChannelIDs {
-		if err = handler.userUseCase.SubsribeUserConnectionToChannel(c.Context(), userID, channelID); err != nil {
-			log.Printf("Cannot subscribe client [%s] connection to channel [%s]", userID, channelID)
+	for _, channel := range user.Channels {
+		if err = handler.userUseCase.SubsribeUserConnectionToChannel(c.Context(), userID, channel.ID); err != nil {
+			log.Printf("Cannot subscribe client [%s] connection to channel [%s]", userID, channel.ID)
 		}
 	}
 
-	for _, channelID := range user.ChannelIDs {
-		log.Printf("PUBLISH AH %s", channelID)
-		handler.node.Publish(channelID.String(), []byte("dataa"))
+	for _, channel := range user.Channels {
+		log.Printf("PUBLISH AH %s", channel.ID)
+		handler.node.Publish(channel.ID, []byte("dataa"))
 	}
 
 	return nil
@@ -103,10 +93,18 @@ func (handler *WSHandler) handleClientCallbacks(c *centrifuge.Client) {
 	})
 
 	c.OnPublish(func(pe centrifuge.PublishEvent, pc centrifuge.PublishCallback) {
-		userID := uuid.MustParse(c.UserID())
-		channelID := uuid.MustParse(pe.Channel)
-		log.Printf("Publish '%s' received from [%s] to channel [%s]", pe.Data, userID, channelID)
-		err := handler.channelUseCase.UpdateChannelWithMessage(c.Context(), userID, channelID, string(pe.Data))
+		log.Printf("Publish '%s' received from [%s] to channel [%s]", pe.Data, c.UserID(), pe.Channel)
+		userID := c.UserID()
+		channelID := pe.Channel
+
+		var message entities.Message
+		err := json.Unmarshal(pe.Data, &message)
+		if err != nil {
+			log.Printf("Invalid message format!\n%s", err)
+			return
+		}
+
+		err = handler.channelUseCase.UpdateChannelWithMessage(c.Context(), userID, channelID, message.Data.(string))
 		if err != nil {
 			log.Printf("Failed to process message!\n%s", err)
 		}
@@ -138,6 +136,12 @@ func (handler *WSHandler) handleClientCallbacks(c *centrifuge.Client) {
 }
 
 func (handler *WSHandler) Init() (err error) {
+	handler.node.OnConnecting(func(c context.Context, ce centrifuge.ConnectEvent) (centrifuge.ConnectReply, error) {
+		fmt.Println(ce.Token)
+		fmt.Println("AMAAN")
+
+		return centrifuge.ConnectReply{}, nil
+	})
 	handler.node.OnConnect(func(c *centrifuge.Client) {
 		if err = handler.newConnectionProcedure(c); err != nil {
 			log.Println(err)
@@ -151,7 +155,11 @@ func (handler *WSHandler) Init() (err error) {
 		log.Fatalf("Could not start centrifuge node\n%s", err)
 	}
 
-	wsHandler = centrifuge.NewWebsocketHandler(handler.node, centrifuge.WebsocketConfig{})
+	wsHandler = centrifuge.NewWebsocketHandler(handler.node, centrifuge.WebsocketConfig{
+		CheckOrigin: func(r *http.Request) bool {
+			return true
+		},
+	})
 	return nil
 }
 

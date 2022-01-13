@@ -1,23 +1,14 @@
 package helpers
 
 import (
-	"github.com/google/uuid"
+	"github.com/harunalfat/chirpbird/backend/entities"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-func IsExistsInStringArray(data []string, searchFor string) bool {
-	for _, d := range data {
-		if searchFor == d {
-			return true
-		}
-	}
-
-	return false
-}
-
-func IsExistsInUUIDArray(data []uuid.UUID, searchFor uuid.UUID) bool {
-	for _, d := range data {
-		if searchFor == d {
+func IsExistsInEntityArray(data entities.Entities, searchFor string) bool {
+	for i := 0; i < data.GetLength(); i++ {
+		dataID := data.GetID(i)
+		if dataID == searchFor {
 			return true
 		}
 	}

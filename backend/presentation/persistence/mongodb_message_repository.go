@@ -2,11 +2,12 @@ package persistence
 
 import (
 	"context"
-	"errors"
+	"fmt"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/harunalfat/chirpbird/backend/entities"
 	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/x/mongo/driver/uuid"
 )
 
 const (
@@ -14,7 +15,7 @@ const (
 )
 
 type MessageRepository interface {
-	FetchFromGroup(ctx context.Context, groupID uuid.UUID) ([]entities.Message, error)
+	FetchFromChannel(ctx context.Context, channelID string) ([]entities.Message, error)
 	Insert(context.Context, entities.Message) (entities.Message, error)
 }
 
@@ -28,13 +29,30 @@ func NewMongodbMessageRepository(client *mongo.Client) MessageRepository {
 	}
 }
 
-func (repo *MongodbMessageRepository) FetchFromGroup(ctx context.Context, groupID uuid.UUID) ([]entities.Message, error) {
+func getChannelKey(channelID string) string {
+	return fmt.Sprintf("channel:%s", channelID)
+}
 
-	return nil, errors.New("NOT READY FUNCTION")
+func (repo *MongodbMessageRepository) FetchFromChannel(ctx context.Context, channelID string) (result []entities.Message, err error) {
+	cursor, err := repo.client.Database(DB_NAME).Collection(getChannelKey(channelID)).Find(ctx, nil)
+	if err != nil {
+		if err == mongo.ErrNilDocument || err == mongo.ErrNoDocuments {
+			return make([]entities.Message, 0), nil
+		}
+		return
+	}
+
+	err = cursor.All(ctx, &result)
+	return
 }
 
 func (repo *MongodbMessageRepository) Insert(ctx context.Context, msgArg entities.Message) (entities.Message, error) {
-	_, err := repo.client.Database(CHAT).Collection(msgArg.ChannelID.String()).InsertOne(ctx, msgArg)
+	msgArg.ID = uuid.New().String()
+	msgArg.CreatedAt = time.Now()
+
+	_, err := repo.client.Database(DB_NAME).
+		Collection(getChannelKey(msgArg.ChannelID)).
+		InsertOne(ctx, msgArg)
 	if err != nil {
 		return entities.Message{}, err
 	}

@@ -24,6 +24,7 @@ var (
 	usersUniqueId       = "users_unique_id"
 	channelsUniqueId    = "channels_unique_id"
 	channelsUniqueHash  = "channels_unique_hash"
+	isUnique            = true
 )
 
 var MONGO_INDEXES = map[string]map[string]*mongo.IndexModel{
@@ -33,7 +34,8 @@ var MONGO_INDEXES = map[string]map[string]*mongo.IndexModel{
 				"username": 1,
 			},
 			Options: &options.IndexOptions{
-				Name: &usersUniqueUsername,
+				Name:   &usersUniqueUsername,
+				Unique: &isUnique,
 			},
 		},
 		usersUniqueId: &mongo.IndexModel{
@@ -41,7 +43,8 @@ var MONGO_INDEXES = map[string]map[string]*mongo.IndexModel{
 				"id": 1,
 			},
 			Options: &options.IndexOptions{
-				Name: &usersUniqueId,
+				Name:   &usersUniqueId,
+				Unique: &isUnique,
 			},
 		},
 	},
@@ -52,7 +55,8 @@ var MONGO_INDEXES = map[string]map[string]*mongo.IndexModel{
 				"id": 1,
 			},
 			Options: &options.IndexOptions{
-				Name: &channelsUniqueId,
+				Name:   &channelsUniqueId,
+				Unique: &isUnique,
 			},
 		},
 		channelsUniqueHash: &mongo.IndexModel{
@@ -60,7 +64,8 @@ var MONGO_INDEXES = map[string]map[string]*mongo.IndexModel{
 				"hashIdentifier": 1,
 			},
 			Options: &options.IndexOptions{
-				Name: &channelsUniqueHash,
+				Name:   &channelsUniqueHash,
+				Unique: &isUnique,
 			},
 		},
 	},
@@ -113,6 +118,5 @@ func buildIndexesIfNotExist(client *mongo.Client) {
 func MongoDBInit() *mongo.Client {
 	client := newMongoClient()
 	buildIndexesIfNotExist(client)
-
 	return client
 }

@@ -20,3 +20,7 @@ func NewMessageUseCase(messageRepo persistence.MessageRepository) *MessageUseCas
 func (uc *MessageUseCase) Store(ctx context.Context, msg entities.Message) (entities.Message, error) {
 	return uc.messageRepo.Insert(ctx, msg)
 }
+
+func (uc *MessageUseCase) FetchAllMessagesByChannel(ctx context.Context, channelID string) ([]entities.Message, error) {
+	return uc.messageRepo.FetchFromChannel(ctx, channelID)
+}

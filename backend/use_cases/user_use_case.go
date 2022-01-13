@@ -2,8 +2,10 @@ package usecases
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"log"
 
-	"github.com/google/uuid"
 	"github.com/harunalfat/chirpbird/backend/entities"
 	"github.com/harunalfat/chirpbird/backend/helpers"
 	"github.com/harunalfat/chirpbird/backend/presentation/persistence"
@@ -24,20 +26,27 @@ func NewUserUseCase(channelUseCase *ChannelUseCase, node NodeWrapper, userRepo p
 	}
 }
 
-func (uc *UserUseCase) Fetch(ctx context.Context, userID uuid.UUID) (entities.User, error) {
-	return uc.userRepo.Fetch(ctx, userID)
+func (uc *UserUseCase) Fetch(ctx context.Context, userID string) (res entities.User, err error) {
+	res, err = uc.userRepo.Fetch(ctx, userID)
+	if err != nil {
+		errMsg := fmt.Sprintf("Cannot fetch user %s from repo\n%s", userID, err)
+		log.Println(errMsg)
+		err = errors.New(errMsg)
+		return
+	}
+	return
 }
 
 func (uc *UserUseCase) EmbedChannelIfNotExist(ctx context.Context, user entities.User, channel entities.Channel) (res entities.User, err error) {
-	if !helpers.IsExistsInUUIDArray(user.ChannelIDs, channel.ID) {
-		user.ChannelIDs = append(user.ChannelIDs, channel.ID)
+	if !helpers.IsExistsInEntityArray(user.Channels, channel.ID) {
+		user.Channels = append(user.Channels, channel)
 		res, err = uc.userRepo.Update(ctx, user.ID, user)
 	}
 
 	return
 }
 
-func (uc *UserUseCase) EmbedChannelToMultipleUsersIfNotExist(ctx context.Context, userIDs []uuid.UUID, channelID uuid.UUID) (err error) {
+func (uc *UserUseCase) EmbedChannelToMultipleUsersIfNotExist(ctx context.Context, userIDs []string, channelID string) (err error) {
 	users, err := uc.userRepo.FetchMultiple(ctx, userIDs)
 	if err != nil {
 		return
@@ -64,11 +73,22 @@ func (uc *UserUseCase) CreateIfUsernameNotExist(ctx context.Context, user entiti
 	}
 
 	if result.Username == "" {
+		channel, errX := uc.channelUseCase.FetchByName(ctx, "Lobby")
+		if errX != nil {
+			return result, errX
+		}
+
+		user.Channels = append(user.Channels, channel)
+
 		result, err = uc.userRepo.Insert(ctx, user)
+		if err != nil {
+			return
+		}
 	}
+
 	return
 }
 
-func (uc *UserUseCase) SubsribeUserConnectionToChannel(ctx context.Context, userID uuid.UUID, channelID uuid.UUID) error {
+func (uc *UserUseCase) SubsribeUserConnectionToChannel(ctx context.Context, userID string, channelID string) error {
 	return uc.node.SubscribeClientToChannel(ctx, userID, channelID)
 }
