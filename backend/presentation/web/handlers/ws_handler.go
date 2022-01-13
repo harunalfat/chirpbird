@@ -9,17 +9,23 @@ import (
 
 	"github.com/centrifugal/centrifuge"
 	"github.com/harunalfat/chirpbird/backend/entities"
+	"github.com/harunalfat/chirpbird/backend/presentation/web"
 	usecases "github.com/harunalfat/chirpbird/backend/use_cases"
 )
 
 const (
 	CHANNEL_GENERAL = "channel_general"
+
+	CREATE_CHANNEL = "create_channel"
+	FETCH_MESSAGE  = "fetch_message"
+	SEARCH_USERS   = "search_users"
 )
 
 var wsHandler http.Handler
 
 type WSHandler struct {
 	channelUseCase *usecases.ChannelUseCase
+	messageUseCase *usecases.MessageUseCase
 	node           *centrifuge.Node
 	userUseCase    *usecases.UserUseCase
 }
@@ -28,9 +34,10 @@ func NewCentrifugeNode() (*centrifuge.Node, error) {
 	return centrifuge.New(centrifuge.DefaultConfig)
 }
 
-func NewWSHandler(channelUseCase *usecases.ChannelUseCase, node *centrifuge.Node, userUseCase *usecases.UserUseCase) *WSHandler {
+func NewWSHandler(channelUseCase *usecases.ChannelUseCase, messageUseCase *usecases.MessageUseCase, node *centrifuge.Node, userUseCase *usecases.UserUseCase) *WSHandler {
 	return &WSHandler{
 		channelUseCase,
+		messageUseCase,
 		node,
 		userUseCase,
 	}
@@ -56,20 +63,9 @@ func (handler *WSHandler) newConnectionProcedure(c *centrifuge.Client) error {
 	userID := c.UserID()
 
 	log.Printf("Successfully open connection for client [%s]", userID)
-	user, err := handler.userUseCase.Fetch(c.Context(), userID)
+	_, err := handler.userUseCase.Fetch(c.Context(), userID)
 	if err != nil {
 		return err
-	}
-
-	for _, channel := range user.Channels {
-		if err = handler.userUseCase.SubsribeUserConnectionToChannel(c.Context(), userID, channel.ID); err != nil {
-			log.Printf("Cannot subscribe client [%s] connection to channel [%s]", userID, channel.ID)
-		}
-	}
-
-	for _, channel := range user.Channels {
-		log.Printf("PUBLISH AH %s", channel.ID)
-		handler.node.Publish(channel.ID, []byte("dataa"))
 	}
 
 	return nil
@@ -94,8 +90,6 @@ func (handler *WSHandler) handleClientCallbacks(c *centrifuge.Client) {
 
 	c.OnPublish(func(pe centrifuge.PublishEvent, pc centrifuge.PublishCallback) {
 		log.Printf("Publish '%s' received from [%s] to channel [%s]", pe.Data, c.UserID(), pe.Channel)
-		userID := c.UserID()
-		channelID := pe.Channel
 
 		var message entities.Message
 		err := json.Unmarshal(pe.Data, &message)
@@ -104,7 +98,7 @@ func (handler *WSHandler) handleClientCallbacks(c *centrifuge.Client) {
 			return
 		}
 
-		err = handler.channelUseCase.UpdateChannelWithMessage(c.Context(), userID, channelID, message.Data.(string))
+		err = handler.channelUseCase.UpdateChannelWithMessage(c.Context(), message)
 		if err != nil {
 			log.Printf("Failed to process message!\n%s", err)
 		}
@@ -126,13 +120,82 @@ func (handler *WSHandler) handleClientCallbacks(c *centrifuge.Client) {
 
 	c.OnRPC(func(ev centrifuge.RPCEvent, cb centrifuge.RPCCallback) {
 		log.Printf("RPC from user: %s, data: %s, method: %s", c.UserID(), string(ev.Data), ev.Method)
-		cb(centrifuge.RPCReply{}, nil)
-		//handler.handleRPC(c, ev, cb)
+		var result []byte
+		var err error
+		switch ev.Method {
+		case FETCH_MESSAGE:
+			result, err = handler.FetchMessage(c.Context(), ev.Data)
+		case SEARCH_USERS:
+			result, err = handler.SearchUsersByName(c.Context(), ev.Data)
+		case CREATE_CHANNEL:
+			result, err = handler.CreateChannelIfNotExist(c.Context(), ev.Data, c.UserID())
+		}
+
+		if err != nil {
+			log.Printf("RPC error\n%s", err)
+		}
+
+		cb(centrifuge.RPCReply{
+			Data: result,
+		}, err)
 	})
 
 	c.OnDisconnect(func(de centrifuge.DisconnectEvent) {
 		log.Printf("Client [%s] disconnected", c.UserID())
 	})
+}
+
+func (handler *WSHandler) FetchMessage(ctx context.Context, input []byte) (result []byte, err error) {
+	var payload web.Response
+	err = json.Unmarshal(input, &payload)
+	if err != nil {
+		return
+	}
+
+	messages, err := handler.messageUseCase.FetchAllMessagesByChannel(ctx, payload.Data.(string))
+	if err != nil {
+		return
+	}
+
+	result, err = json.Marshal(messages)
+	return
+}
+
+func (handler *WSHandler) SearchUsersByName(ctx context.Context, input []byte) (result []byte, err error) {
+	var payload web.Response
+	err = json.Unmarshal(input, &payload)
+	if err != nil {
+		return
+	}
+
+	users, err := handler.userUseCase.SearchByUsername(ctx, payload.Data.(string))
+	if err != nil {
+		return
+	}
+
+	result, err = json.Marshal(users)
+	return
+}
+
+func (handler *WSHandler) CreateChannelIfNotExist(ctx context.Context, input []byte, creatorID string) (result []byte, err error) {
+	var payload web.Response
+	err = json.Unmarshal(input, &payload)
+	if err != nil {
+		return
+	}
+
+	creator, err := handler.userUseCase.Fetch(ctx, creatorID)
+	if err != nil {
+		return
+	}
+
+	channel, err := handler.channelUseCase.CreateIfNameNotExist(ctx, payload.Data.(entities.Channel), creator)
+	if err != nil {
+		return
+	}
+
+	result, err = json.Marshal(channel)
+	return
 }
 
 func (handler *WSHandler) Init() (err error) {
@@ -148,6 +211,11 @@ func (handler *WSHandler) Init() (err error) {
 			c.Disconnect(centrifuge.DisconnectBadRequest)
 		}
 
+		err = c.Subscribe("NEW_PRIVATE_CHANNEL")
+		if err != nil {
+			log.Printf("User cannot subscribe to notification channel\n%s", err)
+		}
+
 		handler.handleClientCallbacks(c)
 	})
 
@@ -161,23 +229,4 @@ func (handler *WSHandler) Init() (err error) {
 		},
 	})
 	return nil
-}
-
-func (handler *WSHandler) handleRPC(client *centrifuge.Client, ev centrifuge.RPCEvent, cb centrifuge.RPCCallback) {
-	switch ev.Method {
-	case "channel/invite":
-		handler.handleRPCChannelInvite(client, ev, cb)
-	default:
-		cb(centrifuge.RPCReply{}, centrifuge.ErrorBadRequest)
-	}
-}
-
-func (handler *WSHandler) handleRPCChannelInvite(client *centrifuge.Client, ev centrifuge.RPCEvent, cb centrifuge.RPCCallback) {
-	var payload entities.InvitePayload
-	if err := json.Unmarshal(ev.Data, &payload); err != nil {
-		cb(centrifuge.RPCReply{}, err)
-	}
-
-	//err := handler.userUseCase.EmbedChannelToMultipleUsers(client.Context(), payload.Usernames, payload.ChannelName)
-	cb(centrifuge.RPCReply{}, nil)
 }

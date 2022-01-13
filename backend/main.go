@@ -52,7 +52,6 @@ func (app *App) run() {
 
 	router.POST("/users", gin.WrapF(app.restHandler.RegisterUser))
 	router.POST("/channels", gin.WrapF(app.restHandler.CreateChannel))
-	router.POST("/channels/invite", gin.WrapF(app.restHandler.InviteToChannel))
 
 	router.Run(fmt.Sprintf(":%s", os.Getenv(env.PORT)))
 }

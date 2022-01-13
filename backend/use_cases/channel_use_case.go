@@ -3,6 +3,7 @@ package usecases
 import (
 	"context"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"time"
 
@@ -31,30 +32,17 @@ func (uc *ChannelUseCase) FetchByName(ctx context.Context, name string) (entitie
 	return uc.channelRepo.FetchByName(ctx, name)
 }
 
-func (uc *ChannelUseCase) UpdateChannelWithMessage(ctx context.Context, senderID string, channelID string, message string) error {
-	input := entities.Message{
-		Sender: entities.User{
-			Base: entities.Base{
-				ID: senderID,
-			},
-		},
-		ChannelID: channelID,
-		Data:      message,
-		Base: entities.Base{
-			CreatedAt: time.Now(),
-		},
-	}
-
-	if _, err := uc.messageUseCase.Store(ctx, input); err != nil {
+func (uc *ChannelUseCase) UpdateChannelWithMessage(ctx context.Context, message entities.Message) error {
+	if _, err := uc.messageUseCase.Store(ctx, message); err != nil {
 		return err
 	}
 
-	channel, err := uc.channelRepo.Fetch(ctx, channelID)
+	channel, err := uc.channelRepo.Fetch(ctx, message.ChannelID)
 	if err != nil {
 		return err
 	}
 
-	_, err = uc.channelRepo.Update(ctx, channelID, channel)
+	_, err = uc.channelRepo.Update(ctx, message.ChannelID, channel)
 	return err
 }
 
@@ -62,6 +50,20 @@ func (uc *ChannelUseCase) CreateIfNameNotExist(ctx context.Context, channel enti
 	result, err = uc.channelRepo.FetchByName(ctx, channel.Name)
 	if err != nil && err != mongo.ErrNoDocuments {
 		return entities.Channel{}, err
+	}
+
+	if result.IsPrivate {
+		isParticipant := false
+		for _, participant := range channel.Participants {
+			if participant.ID == creator.ID {
+				isParticipant = true
+			}
+		}
+
+		if !isParticipant {
+			err = errors.New("cannot recreate private channel")
+			return
+		}
 	}
 
 	if result.Name == "" {

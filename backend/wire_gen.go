@@ -28,7 +28,7 @@ func NewApp(mongoClient *mongo.Client) (*App, error) {
 	userRepository := persistence.NewMongodbUserRepository(mongoClient)
 	userUseCase := usecases.NewUserUseCase(channelUseCase, nodeWrapper, userRepository)
 	restHandler := handlers.NewRestHandler(channelUseCase, messageUseCase, userUseCase)
-	wsHandler := handlers.NewWSHandler(channelUseCase, node, userUseCase)
+	wsHandler := handlers.NewWSHandler(channelUseCase, messageUseCase, node, userUseCase)
 	app := &App{
 		restHandler: restHandler,
 		wsHandler:   wsHandler,

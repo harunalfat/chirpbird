@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/harunalfat/chirpbird/backend/entities"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -34,7 +35,7 @@ func getChannelKey(channelID string) string {
 }
 
 func (repo *MongodbMessageRepository) FetchFromChannel(ctx context.Context, channelID string) (result []entities.Message, err error) {
-	cursor, err := repo.client.Database(DB_NAME).Collection(getChannelKey(channelID)).Find(ctx, nil)
+	cursor, err := repo.client.Database(DB_NAME).Collection(getChannelKey(channelID)).Find(ctx, bson.D{})
 	if err != nil {
 		if err == mongo.ErrNilDocument || err == mongo.ErrNoDocuments {
 			return make([]entities.Message, 0), nil

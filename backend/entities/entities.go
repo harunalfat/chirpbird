@@ -11,6 +11,7 @@ type Channel struct {
 	Name           string `json:"name,omitempty" bson:"name,omitempty"`
 	CreatorID      string `json:"creatorId,omitempty" bson:"creatorId,omitempty"`
 	IsPrivate      bool   `json:"isPrivate" bson:"isPrivate"`
+	Participants   []User `json:"participants,omitempty" bson:"participants,omitempty"`
 	HashIdentifier string `json:"hashIdentifier,omitempty" bson:"hashIdentifier,omitempty"`
 }
 
@@ -26,7 +27,7 @@ func (c Channels) GetID(pos int) string {
 
 type Message struct {
 	Base      `bson:",inline"`
-	Sender    User        `json:"senderId,omitempty"`
-	ChannelID string      `json:"channelId,omitempty"`
-	Data      interface{} `json:"data,omitempty"`
+	Sender    User        `json:"sender,omitempty" bson:"sender,omitempty"`
+	ChannelID string      `json:"channelId,omitempty" bson:"channelId,omitempty"`
+	Data      interface{} `json:"data,omitempty" bson:"data,omitempty"`
 }

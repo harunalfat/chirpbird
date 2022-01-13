@@ -37,6 +37,28 @@ func (uc *UserUseCase) Fetch(ctx context.Context, userID string) (res entities.U
 	return
 }
 
+func (uc *UserUseCase) FetchByUsername(ctx context.Context, username string) (res entities.User, err error) {
+	res, err = uc.userRepo.FetchByUsername(ctx, username)
+	if err != nil {
+		errMsg := fmt.Sprintf("Cannot fetch user %s from repo\n%s", username, err)
+		log.Println(errMsg)
+		err = errors.New(errMsg)
+		return
+	}
+	return
+}
+
+func (uc *UserUseCase) SearchByUsername(ctx context.Context, username string) (res []entities.User, err error) {
+	res, err = uc.userRepo.SearchByUsername(ctx, username)
+	if err != nil {
+		errMsg := fmt.Sprintf("Cannot search user %s from repo\n%s", username, err)
+		log.Println(errMsg)
+		err = errors.New(errMsg)
+		return
+	}
+	return
+}
+
 func (uc *UserUseCase) EmbedChannelIfNotExist(ctx context.Context, user entities.User, channel entities.Channel) (res entities.User, err error) {
 	if !helpers.IsExistsInEntityArray(user.Channels, channel.ID) {
 		user.Channels = append(user.Channels, channel)
@@ -46,13 +68,14 @@ func (uc *UserUseCase) EmbedChannelIfNotExist(ctx context.Context, user entities
 	return
 }
 
-func (uc *UserUseCase) EmbedChannelToMultipleUsersIfNotExist(ctx context.Context, userIDs []string, channelID string) (err error) {
-	users, err := uc.userRepo.FetchMultiple(ctx, userIDs)
-	if err != nil {
-		return
+func (uc *UserUseCase) EmbedChannelToMultipleUsersIfNotExist(ctx context.Context, channel entities.Channel) (err error) {
+	userIDs := make([]string, len(channel.Participants)+1)
+	for idx, participant := range channel.Participants {
+		userIDs[idx] = participant.ID
 	}
 
-	channel, err := uc.channelUseCase.Fetch(ctx, channelID)
+	userIDs = append(userIDs, channel.CreatorID)
+	users, err := uc.userRepo.FetchMultiple(ctx, userIDs)
 	if err != nil {
 		return
 	}

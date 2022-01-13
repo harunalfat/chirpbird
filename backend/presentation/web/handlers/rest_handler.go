@@ -18,6 +18,7 @@ func jsonError(rw http.ResponseWriter, code int, errs ...error) {
 	for _, e := range errs {
 		errorStrings = append(errorStrings, e.Error())
 	}
+	log.Printf("Giving error response\n%s", errorStrings)
 
 	resp := web.Response{
 		Data:   code,
@@ -91,31 +92,10 @@ func (handler *RestHandler) CreateChannel(rw http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if _, err = handler.userUseCase.EmbedChannelIfNotExist(r.Context(), creator, created); err != nil {
+	if err = handler.userUseCase.EmbedChannelToMultipleUsersIfNotExist(r.Context(), created); err != nil {
 		jsonError(rw, http.StatusBadRequest, err)
 		return
 	}
 
 	jsonResponse(rw, http.StatusCreated, map[string]interface{}{"channel": created, "messages": messages})
-}
-
-func (handler *RestHandler) InviteToChannel(rw http.ResponseWriter, r *http.Request) {
-	var payload entities.InvitePayload
-	err := json.NewDecoder(r.Body).Decode(&payload)
-	if err != nil {
-		jsonError(rw, http.StatusBadRequest, err)
-		return
-	}
-
-	if err = handler.userUseCase.EmbedChannelToMultipleUsersIfNotExist(r.Context(), payload.UserIDs, payload.ChannelID); err != nil {
-		jsonError(rw, http.StatusInternalServerError, err)
-		return
-	}
-
-	for _, userID := range payload.UserIDs {
-		if err = handler.userUseCase.SubsribeUserConnectionToChannel(r.Context(), userID, payload.ChannelID); err != nil {
-			log.Printf("Failed to subsribe client [%s] to channel [%s]", userID, payload.ChannelID)
-		}
-	}
-	jsonResponse(rw, http.StatusOK, "ok")
 }

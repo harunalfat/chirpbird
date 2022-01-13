@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/harunalfat/chirpbird/backend/entities"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -19,6 +20,7 @@ const (
 type UserRepository interface {
 	Fetch(ctx context.Context, userID string) (entities.User, error)
 	FetchByUsername(ctx context.Context, username string) (entities.User, error)
+	SearchByUsername(ctx context.Context, username string) ([]entities.User, error)
 	FetchMultiple(context.Context, []string) ([]entities.User, error)
 	Update(ctx context.Context, userID string, updated entities.User) (entities.User, error)
 	Insert(context.Context, entities.User) (entities.User, error)
@@ -56,6 +58,21 @@ func (repo *MongodbUserRepository) FetchByUsername(ctx context.Context, username
 		Decode(&user)
 
 	return user, err
+}
+
+func (repo *MongodbUserRepository) SearchByUsername(ctx context.Context, username string) (res []entities.User, err error) {
+	filter := bson.D{{Key: USERNAME, Value: primitive.Regex{Pattern: username, Options: "i"}}}
+	cursor, err := repo.client.
+		Database(DB_NAME).
+		Collection(COLLECTION_USER).
+		Find(ctx, filter)
+
+	if err != nil {
+		return
+	}
+
+	err = cursor.All(ctx, &res)
+	return
 }
 
 func (repo *MongodbUserRepository) FetchMultiple(ctx context.Context, userIDs []string) ([]entities.User, error) {
