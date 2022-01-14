@@ -59,7 +59,7 @@ func (app *App) run() {
 func main() {
 	err := godotenv.Load()
 	if err != nil {
-		log.Fatalf("Failed to initialize environment variables\n%s", err)
+		log.Printf("Cannot read environment from file\n%s", err)
 	}
 
 	mongoClient := persistence.MongoDBInit()

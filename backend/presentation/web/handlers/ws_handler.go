@@ -6,9 +6,12 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"strings"
 
 	"github.com/centrifugal/centrifuge"
 	"github.com/harunalfat/chirpbird/backend/entities"
+	"github.com/harunalfat/chirpbird/backend/env"
 	"github.com/harunalfat/chirpbird/backend/presentation/web"
 	usecases "github.com/harunalfat/chirpbird/backend/use_cases"
 )
@@ -198,6 +201,41 @@ func (handler *WSHandler) CreateChannelIfNotExist(ctx context.Context, input []b
 	return
 }
 
+func (handler *WSHandler) setupRedisAdapter() (err error) {
+	redisShard, err := centrifuge.NewRedisShard(handler.node, centrifuge.RedisShardConfig{
+		Address:           os.Getenv(env.REDIS_ADDRESS),
+		SentinelAddresses: strings.Split(os.Getenv(env.REDIS_SENTINEL_ADDRESSES), ","),
+		Password:          os.Getenv(env.REDIS_PASSWORD),
+	})
+
+	if err != nil {
+		log.Fatalf("Cannot create redis shard instance\n%s", err)
+		return
+	}
+
+	redisBroker, err := centrifuge.NewRedisBroker(handler.node, centrifuge.RedisBrokerConfig{
+		Shards: []*centrifuge.RedisShard{redisShard},
+	})
+
+	if err != nil {
+		log.Fatalf("Cannot create redis broker instance\n%s", err)
+		return
+	}
+
+	redisPresenceManager, err := centrifuge.NewRedisPresenceManager(handler.node, centrifuge.RedisPresenceManagerConfig{
+		Shards: []*centrifuge.RedisShard{redisShard},
+	})
+
+	if err != nil {
+		log.Fatalf("Cannot create redis presence manager instance\n%s", err)
+		return
+	}
+
+	handler.node.SetBroker(redisBroker)
+	handler.node.SetPresenceManager(redisPresenceManager)
+	return nil
+}
+
 func (handler *WSHandler) Init() (err error) {
 	handler.node.OnConnecting(func(c context.Context, ce centrifuge.ConnectEvent) (centrifuge.ConnectReply, error) {
 		fmt.Println(ce.Token)
@@ -218,6 +256,10 @@ func (handler *WSHandler) Init() (err error) {
 
 		handler.handleClientCallbacks(c)
 	})
+
+	if err = handler.setupRedisAdapter(); err != nil {
+		log.Fatalf("Cannot use redis as adapter\n%s", err)
+	}
 
 	if err := handler.node.Run(); err != nil {
 		log.Fatalf("Could not start centrifuge node\n%s", err)

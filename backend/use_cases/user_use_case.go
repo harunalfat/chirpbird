@@ -96,13 +96,6 @@ func (uc *UserUseCase) CreateIfUsernameNotExist(ctx context.Context, user entiti
 	}
 
 	if result.Username == "" {
-		channel, errX := uc.channelUseCase.FetchByName(ctx, "Lobby")
-		if errX != nil {
-			return result, errX
-		}
-
-		user.Channels = append(user.Channels, channel)
-
 		result, err = uc.userRepo.Insert(ctx, user)
 		if err != nil {
 			return
