@@ -1,43 +1,84 @@
 version: '2'
 
+networks:
+  app-net:
+    driver: bridge
+
 services:
   redis1:
     image: redis:6.2.6-alpine
     ports:
       - '6379:6379'
+    networks:
+      - app-net
+
+  redis2:
+    image: redis:6.2.6-alpine
+    command: redis-server --slaveof redis1 6379
+    ports:
+      - '6380:6379'
+    networks:
+      - app-net
+
+  redis-sentinel1:
+    build: 
+      context: ./redis-sentinel-setup
+    networks:
+      - app-net
+  
+  redis-sentinel2:
+    build: 
+      context: ./redis-sentinel-setup
+    networks:
+      - app-net
+
+  redis-sentinel3:
+    build: 
+      context: ./redis-sentinel-setup
+    networks:
+      - app-net
 
   mongodb1:
     image: 'mongo:5.0-focal'
     ports:
       - '27018:27017'
     entrypoint: [ "/usr/bin/mongod", "--replSet", "rsmongo", "--bind_ip_all"]
+    networks:
+      - app-net
 
   mongodb2:
     image: 'mongo:5.0-focal'
     ports:
       - '27019:27017'
     entrypoint: [ "/usr/bin/mongod", "--replSet", "rsmongo", "--bind_ip_all"]
+    networks:
+      - app-net
 
-  mongosetup:
-    image: "mongo-setup"
-    build: "./mongo-setup"
+  mongodb3:
+    image: 'mongo:5.0-focal'
     ports:
       - '27020:27017'
-    depends_on:
-        - mongodb1
+    entrypoint: [ "/usr/bin/mongod", "--replSet", "rsmongo", "--bind_ip_all"]
+    networks:
+      - app-net
+
+  mongodb-configer:
+    build: "./mongo-setup"
+    networks:
+      - app-net
 
   go-svc:
     build: ./backend
     environment:
       - PORT=8000
       - REDIS_ADDRESS=redis1:6379
-      - REDIS_SENTINEL_ADDRESSES=
-      - REDIS_MASTER_NAME=
-      - MONGODB_CONN_URL=mongodb://mongodb1:27017,mongodb://mongodb2:27017,mongodb://mongosetup:27017
+      - REDIS_SENTINEL_ADDRESSES=redis-sentinel1:26379,redis-sentinel2:26379,redis-sentinel3:26379
+      - REDIS_MASTER_NAME=redismaster
+      - MONGODB_CONN_URL=mongodb://mongodb1:27017,mongodb://mongodb2:27017,mongodb://mongodb3:27017
     ports:
       - '8000:8000'
-    depends_on:
-      - redis1
+    networks:
+      - app-net
 
   statics:
     build: ./frontend
@@ -45,3 +86,5 @@ services:
       - go-svc
     ports:
       - '4200:80'
+    networks:
+      - app-net

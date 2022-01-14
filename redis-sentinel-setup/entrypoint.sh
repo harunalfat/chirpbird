@@ -1,3 +1,3 @@
 #!/bin/sh
 
-redis-server /redis/sentinel-slave.conf --sentinel
+redis-server /redis/sentinel.conf --sentinel

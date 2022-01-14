@@ -10,6 +10,11 @@ rsconf = {
             "_id": 1,
             "host": "mongodb2:27017",
             "priority": 1
+        },
+        {
+            "_id": 2,
+            "host": "mongodb3:27017",
+            "priority": 3
         }
     ]
  }

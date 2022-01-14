@@ -8,6 +8,6 @@ COPY mongo-setup.js .
 
 RUN chmod +x /config/wait-for-it.sh
 RUN chmod +x /config/mongo-setup.sh
-CMD [ "bash", "-c", "/config/wait-for-it.sh mongodb1:27017 -- /config/mongo-setup.sh", "/usr/bin/mongod", "--replSet", "rsmongo", "--bind_ip_all"]
+CMD [ "bash", "-c", "/config/wait-for-it.sh mongodb1:27017 -- /config/mongo-setup.sh"]
 
  
