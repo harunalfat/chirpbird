@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	CHANNEL_GENERAL = "channel_general"
+	NEW_PRIVATE_CHANNEL = "NEW_PRIVATE_CHANNEL"
 
 	CREATE_CHANNEL = "create_channel"
 	FETCH_MESSAGE  = "fetch_message"
@@ -101,9 +101,11 @@ func (handler *WSHandler) handleClientCallbacks(c *centrifuge.Client) {
 			return
 		}
 
-		err = handler.channelUseCase.UpdateChannelWithMessage(c.Context(), message)
-		if err != nil {
-			log.Printf("Failed to process message!\n%s", err)
+		if pe.Channel != NEW_PRIVATE_CHANNEL {
+			err = handler.channelUseCase.UpdateChannelWithMessage(c.Context(), message)
+			if err != nil {
+				log.Printf("Failed to process message!\n%s", err)
+			}
 		}
 
 		pc(centrifuge.PublishReply{
@@ -113,7 +115,7 @@ func (handler *WSHandler) handleClientCallbacks(c *centrifuge.Client) {
 					UserID:   c.UserID(),
 				},
 			},
-		}, nil)
+		}, err)
 	})
 
 	c.OnPresence(func(pe centrifuge.PresenceEvent, pc centrifuge.PresenceCallback) {
@@ -202,10 +204,13 @@ func (handler *WSHandler) CreateChannelIfNotExist(ctx context.Context, input []b
 }
 
 func (handler *WSHandler) setupRedisAdapter() (err error) {
+	sentinels := strings.Split(os.Getenv(env.REDIS_SENTINEL_ADDRESSES), ",")
+	log.Println(sentinels[0])
 	redisShard, err := centrifuge.NewRedisShard(handler.node, centrifuge.RedisShardConfig{
-		Address:           os.Getenv(env.REDIS_ADDRESS),
-		SentinelAddresses: strings.Split(os.Getenv(env.REDIS_SENTINEL_ADDRESSES), ","),
-		Password:          os.Getenv(env.REDIS_PASSWORD),
+		Address:            os.Getenv(env.REDIS_ADDRESS),
+		SentinelAddresses:  sentinels,
+		Password:           os.Getenv(env.REDIS_PASSWORD),
+		SentinelMasterName: os.Getenv(env.REDIS_MASTER_NAME),
 	})
 
 	if err != nil {
@@ -249,7 +254,7 @@ func (handler *WSHandler) Init() (err error) {
 			c.Disconnect(centrifuge.DisconnectBadRequest)
 		}
 
-		err = c.Subscribe("NEW_PRIVATE_CHANNEL")
+		err = c.Subscribe(NEW_PRIVATE_CHANNEL)
 		if err != nil {
 			log.Printf("User cannot subscribe to notification channel\n%s", err)
 		}

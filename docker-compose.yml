@@ -1,88 +1,43 @@
 version: '2'
 
-networks:
-  app-tier:
-    driver: bridge
-
 services:
-  redis:
-    image: 'redis:6.2.6-alpine'
-    environment:
-      - REDIS_REPLICATION_MODE=master
-      - REDIS_PASSWORD=str0ng_passw0rd
-    networks:
-      - app-tier
+  redis1:
+    image: redis:6.2.6-alpine
     ports:
-      - '6379'
-
-  redis-slave:
-    image: 'redis:6.2.6-alpine'
-    environment:
-      - REDIS_REPLICATION_MODE=slave
-      - REDIS_MASTER_HOST=redis
-      - REDIS_MASTER_PASSWORD=str0ng_passw0rd
-      - REDIS_PASSWORD=str0ng_passw0rd
-    ports:
-      - '6379'
-    depends_on:
-      - redis
-    networks:
-      - app-tier
-
-  redis-sentinel:
-    image: 'bitnami/redis-sentinel:latest'
-    environment:
-      - REDIS_MASTER_PASSWORD=str0ng_passw0rd
-    depends_on:
-      - redis
-      - redis-slave
-    ports:
-      - '26379-26381:26379'
-    networks:
-      - app-tier
+      - '6379:6379'
 
   mongodb1:
     image: 'mongo:5.0-focal'
     ports:
       - '27018:27017'
-    networks:
-      - app-tier
     entrypoint: [ "/usr/bin/mongod", "--replSet", "rsmongo", "--bind_ip_all"]
 
   mongodb2:
     image: 'mongo:5.0-focal'
     ports:
       - '27019:27017'
-    networks:
-      - app-tier
     entrypoint: [ "/usr/bin/mongod", "--replSet", "rsmongo", "--bind_ip_all"]
 
   mongosetup:
     image: "mongo-setup"
     build: "./mongo-setup"
-    container_name: "mongosetup"
+    ports:
+      - '27020:27017'
     depends_on:
         - mongodb1
-    networks:
-      - app-tier
 
   go-svc:
     build: ./backend
-    depends_on:
-      - redis
-      - redis-slave
-      - mongodb1
-      - mongodb2
     environment:
       - PORT=8000
-      - REDIS_ADDRESS=redis:6379
-      - REDIS_PASWORD=str0ng_passw0rd
-      - REDIS_SENTINEL_ADDRESSES=redis-sentinel:26379
-      - MONGODB_CONN_URL=mongodb://mongodb1:27017,mongodb://mongodb2:27017
+      - REDIS_ADDRESS=redis1:6379
+      - REDIS_SENTINEL_ADDRESSES=
+      - REDIS_MASTER_NAME=
+      - MONGODB_CONN_URL=mongodb://mongodb1:27017,mongodb://mongodb2:27017,mongodb://mongosetup:27017
     ports:
       - '8000:8000'
-    networks:
-      - app-tier
+    depends_on:
+      - redis1
 
   statics:
     build: ./frontend
@@ -90,5 +45,3 @@ services:
       - go-svc
     ports:
       - '4200:80'
-    networks:
-      - app-tier

@@ -86,6 +86,12 @@ func (handler *RestHandler) CreateChannel(rw http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	_, err = handler.userUseCase.EmbedChannelIfNotExist(r.Context(), creator, created)
+	if err != nil {
+		jsonError(rw, http.StatusBadRequest, err)
+		return
+	}
+
 	messages, err := handler.messageUseCase.FetchAllMessagesByChannel(r.Context(), created.ID)
 	if err != nil {
 		jsonError(rw, http.StatusBadRequest, err)
