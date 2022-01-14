@@ -1,0 +1,23 @@
+<h2 class="dialog-title" mat-dialog-title>Private Message</h2>
+
+<mat-dialog-content class="dialog-content">
+  <mat-form-field>
+    <input matInput name="channel" placeholder="Search User" [matAutocomplete]="auto"
+          (keyup.enter)="onSave()" [formControl]="userFormControl">
+    <mat-hint>Please type user's name</mat-hint>
+    <mat-autocomplete autoActiveFirstOption #auto="matAutocomplete">
+      <mat-option *ngFor="let option of filteredOptions" [value]="option.username">
+        {{option.username}}
+      </mat-option>
+    </mat-autocomplete>
+  </mat-form-field>
+</mat-dialog-content>
+
+<div mat-dialog-actions [attr.align]="'end'">
+  <button mat-raised-button color="primary" (click)="onSave()" >Enter</button>
+</div>
+
+<mat-dialog-actions *ngIf="params?.typeDialog === 'edit-user'" [attr.align]="'end'">
+  <button mat-button mat-dialog-close color="secondary">Close</button>
+  <button mat-raised-button color="primary" mat-dialog-close (click)="onSave()">Save</button>
+</mat-dialog-actions>

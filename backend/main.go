@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"net/http"
 	"os"
 
 	"github.com/gin-contrib/cors"
@@ -46,7 +45,7 @@ func (app *App) run() {
 	}))
 
 	// serve static assets
-	router.StaticFS("/statics", http.Dir("../frontend"))
+	//router.StaticFS("/statics", http.Dir("../frontend/dist/client"))
 
 	router.GET("/connection/websocket", gin.WrapF(app.wsHandler.Serve))
 

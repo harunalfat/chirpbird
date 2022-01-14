@@ -1,0 +1,13 @@
+FROM redis:6.2.6-alpine
+
+RUN mkdir -p /redis
+
+WORKDIR /redis
+
+COPY sentinel-master.conf .
+COPY entrypoint-master.sh /usr/local/bin/
+
+RUN chown redis:redis /redis/* && \
+    chmod +x /usr/local/bin/entrypoint-master.sh
+
+ENTRYPOINT ["entrypoint-master.sh"]

@@ -1,0 +1,20 @@
+<h2 mat-dialog-title>{{ 'Dialog Title' | translate:params }}</h2>
+
+
+<div mat-dialog-content >
+  <mat-form-field>
+    <input matInput name="this.user.username" placeholder="{{'Username' | translate}}"
+          (keyup.enter)="onSave()" [formControl]="usernameFormControl" required>
+    <mat-error translate>FieldRequired</mat-error>
+    <mat-hint translate>Please type your username</mat-hint>
+  </mat-form-field>
+</div>
+
+<div mat-dialog-actions [attr.align]="'end'">
+  <button mat-raised-button color="primary" mat-dialog-close (click)="onSave()" [disabled]="usernameFormControl.hasError('required')">Enter</button>
+</div>
+
+<mat-dialog-actions *ngIf="params?.typeDialog === 'edit-user'" [attr.align]="'end'">
+  <button mat-button mat-dialog-close color="secondary">Close</button>
+  <button mat-raised-button color="primary" mat-dialog-close (click)="onSave()">Save</button>
+</mat-dialog-actions>

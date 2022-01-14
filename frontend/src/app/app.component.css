@@ -1,0 +1,14 @@
+.app-content {
+  width: 100%;
+  height: 80%;
+  box-sizing: border-box;
+} 
+
+.raised-button {
+  padding-left: 10%;
+  width: 90%;
+}
+
+.chosen, .chosen:hover {
+  background-color: grey;
+}

@@ -1,0 +1,31 @@
+<button mat-fab class="fab-1" (click)="onClickPrivateMessage()">
+  <mat-icon>contacts</mat-icon>
+</button>
+<mat-card class="main-card">
+  <mat-list class="chat-list">
+    <mat-list-item *ngFor="let message of messages" [ngClass]="[(message.sender.id === user.id)? '': 'chat-list-item']">
+      <img mat-list-avatar *ngIf="message.action === undefined" src="https://png.pngtree.com/png-clipart/20190924/original/pngtree-user-vector-avatar-png-image_4830521.jpg">
+      <h4 mat-line *ngIf="message.action === undefined">
+        <b>{{message.sender.username}}</b>
+      </h4>
+      <p mat-line *ngIf="message.action === undefined">
+        <span> {{message.data}} </span>
+      </p>
+      <p mat-line *ngIf="message.action === action.JOINED" class="chat-notification">
+        <span translate> Welcome to the chat, <b>{{message.sender.name}}</b> </span>
+      </p>
+    </mat-list-item>
+  </mat-list>
+  <div class="chat-footer-container">
+    <mat-icon>message</mat-icon>
+    <mat-form-field class="chat-input">
+      <input matInput
+             #inputMessage
+             maxlength="140"
+             placeholder="Type your message{{user?.username ? ', '+ user.username : ''}}"
+             [(ngModel)]="messageContent"
+             (keyup.enter)="sendMessage(messageContent, currentChannel.id)">
+      <mat-hint align="end">{{inputMessage.value.length}}/140</mat-hint>
+    </mat-form-field>
+  </div>
+</mat-card>
