@@ -98,7 +98,7 @@ export class ChatComponent implements OnInit, AfterViewInit {
   }
 
   private async initIoConnection(): Promise<void> {
-    this.socketService.initSocket(this.user.id);
+    await this.socketService.initSocket(this.user.id);
     if (this.user.channels?.length < 1) {
       const lobby: Channel = {
         name: "Lobby",
@@ -175,7 +175,7 @@ export class ChatComponent implements OnInit, AfterViewInit {
       this.messages = await this.storedUser.getMessages(channel.name)
       this.currentChannel = channel
       this.storedUser.announceInitialChannel(this.currentChannel)
-      this.socketService.send('NEW_PRIVATE_CHANNEL', channel)
+      this.socketService.send(null, channel)
     })
   }
 
@@ -197,11 +197,13 @@ export class ChatComponent implements OnInit, AfterViewInit {
           this.user.channels = []
         }
         sessionStorage.setItem("channelList", JSON.stringify(this.user.channels))
-        this.initIoConnection();
-        this.socketService.subscribe<Channel>('NEW_PRIVATE_CHANNEL', async (wrapper) => {
-          const channel = wrapper.data
-          this.socketService.subscribe<Message>(channel.id, (message) => {
-            this.onSubscribeMessage(message, channel)
+        await this.initIoConnection();
+        // subscribe to server pushing new channel
+        this.socketService.subscribeServer<Channel>(async (ctx) => {
+          if (ctx.channel !== "SERVER_NOTIFICATION") return
+
+          this.socketService.subscribe<Message>(ctx.data.id, (message) => {
+            this.onSubscribeMessage(message, ctx.data)
           })
         })
       }

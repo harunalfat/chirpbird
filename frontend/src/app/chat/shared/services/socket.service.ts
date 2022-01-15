@@ -12,6 +12,12 @@ const SERVER_URL = 'http://localhost:8080';
 
 @Injectable()
 export class SocketService implements ISocketService {
+    subscribeServer<T>(cb: (message: T) => void): void {
+        throw new Error('Method not implemented.');
+    }
+    addChannelRpc(channel: Channel): Promise<Channel> {
+        throw new Error('Method not implemented.');
+    }
     searchUsersByUsernameRpc(username: string): Promise<User[]> {
         throw new Error('Method not implemented.');
     }
@@ -29,8 +35,9 @@ export class SocketService implements ISocketService {
         throw new Error('Method not implemented.');
     }
 
-    public initSocket(): void {
+    public initSocket(): Promise<void> {
         this.socket = socketIo(SERVER_URL);
+        return
     }
 
     isConnected(): boolean {

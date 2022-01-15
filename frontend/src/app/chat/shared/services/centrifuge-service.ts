@@ -10,6 +10,7 @@ import { ISocketService } from "./i-socket-service";
 
 const FETCH_MESSAGE = "fetch_message"
 const FETCH_CHANNEL = "fetch_channel"
+const CREATE_CHANNEL = "create_channel"
 const SEARCH_USERS = "search_users"
 
 @Injectable({
@@ -32,16 +33,26 @@ export class CentrifugeService implements ISocketService {
     }
 
     subscribe<T>(channelId: string, cb: (message: ServerEventWrapper<T>) => void): void {
+        if (!channelId) {
+            this.centrifuge.on("message", cb)
+            return
+        }
         this.centrifuge.subscribe(channelId, cb)
     }
 
-    initSocket(token: string): void {
+    subscribeServer<T>(cb: (ctx: ServerEventWrapper<T>) => void): void {
+        this.centrifuge.on("publish", cb)
+    }
+
+    async initSocket(token: string): Promise<void> {
         const url = this.BASE_URL + `?userId=${token}`;
         this.centrifuge = new Centrifuge(url, {
             debug: true,
-            
         });
         this.centrifuge.connect();
+        await this.waitForNodeConnected()
+        
+        await this.centrifuge.send("hello world")
     }
 
     isConnected(): boolean {
@@ -49,6 +60,10 @@ export class CentrifugeService implements ISocketService {
     }
 
     send<T>(channelId: string, message: T): void {
+        if (!channelId) {
+            this.centrifuge.send(message)
+            return
+        }
         this.centrifuge.publish(channelId, message)
     }
 
@@ -72,20 +87,37 @@ export class CentrifugeService implements ISocketService {
         return response;
     }
 
-    async fetchChannelMessagesRpc(channelId: string): Promise<Message[]> {
+    private async waitForNodeConnected(): Promise<boolean> {
         var maxTry = 5;
         while (maxTry > 0 && !this.isConnected()) {
             maxTry--;
             await new Promise((resolve) => setTimeout(resolve, 1000))
         }
         
-        if (!this.isConnected()) return [];
+        return this.isConnected();
+    }
+
+    async fetchChannelMessagesRpc(channelId: string): Promise<Message[]> {
+        const connected = await this.waitForNodeConnected()
+        if (!connected) return [];
         
         const data : ServerEventWrapper<string> = {
             data: channelId,
         }
 
         const response = await this.centrifuge.namedRPC(FETCH_MESSAGE, data);
+        return response.data
+    }
+
+    async addChannelRpc(channel: Channel): Promise<Channel> {
+        const connected = await this.waitForNodeConnected()
+        if (!connected) return;
+
+        const data : ServerEventWrapper<Channel> = {
+            data: channel,
+        }
+
+        const response = await this.centrifuge.namedRPC(CREATE_CHANNEL, data)
         return response.data
     }
 

@@ -75,25 +75,20 @@ export class ServerStoreUserService implements IStoreUserService {
         const channels = this.getAllChannels();
         if (channels.find(c => c.name === channel.name)) return null
 
-        const resp = await this.axios.post<string>(`/channels?userId=${creatorId}`, JSON.stringify(channel))
-        if (resp.status != 201) {
-            console.error("Failed to store channel")
-            return
-        }
+        const resp = await this.socketService.addChannelRpc(channel)
 
-        const parsed: Response<any> = JSON.parse(resp.data)
         if (channels.length < 1) {
-            channels.push(parsed.data.channel)
+            channels.push(resp)
             sessionStorage.setItem("channelList", JSON.stringify(channels))
-            return parsed.data.channel
+            return resp
         }
-        if (channels.find(c => c.id !== parsed.data.channel.id)) {
-            channels.push(parsed.data.channel)
+        if (channels.find(c => c.id !== resp.id)) {
+            channels.push(resp)
             channels.sort((a,b) => a.name < b.name ? -1 : 1)
             sessionStorage.setItem("channelList", JSON.stringify(channels))
         }
 
-        return parsed.data.channel
+        return resp
     }
 
     storeAllMessages(messages: Message[], channelId: string) {

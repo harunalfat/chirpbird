@@ -22,6 +22,8 @@ const (
 	CREATE_CHANNEL = "create_channel"
 	FETCH_MESSAGE  = "fetch_message"
 	SEARCH_USERS   = "search_users"
+
+	SERVER_NOTIFICATION = "SERVER_NOTIFICATION"
 )
 
 var wsHandler http.Handler
@@ -75,6 +77,14 @@ func (handler *WSHandler) newConnectionProcedure(c *centrifuge.Client) error {
 }
 
 func (handler *WSHandler) handleClientCallbacks(c *centrifuge.Client) {
+	err := c.Send([]byte(`{"hello": "world"}`))
+	if err != nil {
+		log.Println(err)
+	}
+	err = c.Subscribe(SERVER_NOTIFICATION)
+	if err != nil {
+		log.Printf("Failed to add client for server side notif\n%s", err)
+	}
 	c.OnSubscribe(func(se centrifuge.SubscribeEvent, sc centrifuge.SubscribeCallback) {
 		log.Printf("Subscribe from user: %s, data: %s, channel: %s", c.UserID(), string(se.Data), se.Channel)
 		sc(centrifuge.SubscribeReply{
@@ -88,7 +98,23 @@ func (handler *WSHandler) handleClientCallbacks(c *centrifuge.Client) {
 	})
 
 	c.OnMessage(func(me centrifuge.MessageEvent) {
-		log.Printf("Received echo message [%s] from [%s]", me.Data, c.UserID())
+		log.Printf("Received echo message [%s] from [%s]", string(me.Data), c.UserID())
+
+		var payload entities.Channel
+		err = json.Unmarshal(me.Data, &payload)
+		if err != nil {
+			return
+		}
+		log.Println(payload)
+
+		if !payload.IsPrivate {
+			return
+		}
+
+		_, err := handler.node.Publish(SERVER_NOTIFICATION, me.Data)
+		if err != nil {
+			log.Printf("Failed to publish server notification\n%s", err)
+		}
 	})
 
 	c.OnPublish(func(pe centrifuge.PublishEvent, pc centrifuge.PublishCallback) {
@@ -151,13 +177,14 @@ func (handler *WSHandler) handleClientCallbacks(c *centrifuge.Client) {
 }
 
 func (handler *WSHandler) FetchMessage(ctx context.Context, input []byte) (result []byte, err error) {
-	var payload web.Response
+	var payload web.RPCRequestString
+	log.Println(string(input))
 	err = json.Unmarshal(input, &payload)
 	if err != nil {
 		return
 	}
 
-	messages, err := handler.messageUseCase.FetchAllMessagesByChannel(ctx, payload.Data.(string))
+	messages, err := handler.messageUseCase.FetchAllMessagesByChannel(ctx, payload.Data)
 	if err != nil {
 		return
 	}
@@ -167,13 +194,13 @@ func (handler *WSHandler) FetchMessage(ctx context.Context, input []byte) (resul
 }
 
 func (handler *WSHandler) SearchUsersByName(ctx context.Context, input []byte) (result []byte, err error) {
-	var payload web.Response
+	var payload web.RPCRequestString
 	err = json.Unmarshal(input, &payload)
 	if err != nil {
 		return
 	}
 
-	users, err := handler.userUseCase.SearchByUsername(ctx, payload.Data.(string))
+	users, err := handler.userUseCase.SearchByUsername(ctx, payload.Data)
 	if err != nil {
 		return
 	}
@@ -183,7 +210,9 @@ func (handler *WSHandler) SearchUsersByName(ctx context.Context, input []byte) (
 }
 
 func (handler *WSHandler) CreateChannelIfNotExist(ctx context.Context, input []byte, creatorID string) (result []byte, err error) {
-	var payload web.Response
+	var payload web.RPCRequestChannel
+	log.Println(payload)
+	log.Println(string(input))
 	err = json.Unmarshal(input, &payload)
 	if err != nil {
 		return
@@ -194,9 +223,27 @@ func (handler *WSHandler) CreateChannelIfNotExist(ctx context.Context, input []b
 		return
 	}
 
-	channel, err := handler.channelUseCase.CreateIfNameNotExist(ctx, payload.Data.(entities.Channel), creator)
+	channel, err := handler.channelUseCase.CreateIfNameNotExist(ctx, payload.Data, creator)
 	if err != nil {
 		return
+	}
+
+	_, err = handler.userUseCase.EmbedChannelIfNotExist(ctx, creator, channel)
+	if err != nil {
+		return
+	}
+
+	for _, p := range channel.Participants {
+		var user entities.User
+		user, err = handler.userUseCase.Fetch(ctx, p.ID)
+		if err != nil {
+			return
+		}
+
+		user, err = handler.userUseCase.EmbedChannelIfNotExist(ctx, user, channel)
+		if err != nil {
+			return
+		}
 	}
 
 	result, err = json.Marshal(channel)
@@ -252,11 +299,6 @@ func (handler *WSHandler) Init() (err error) {
 		if err = handler.newConnectionProcedure(c); err != nil {
 			log.Println(err)
 			c.Disconnect(centrifuge.DisconnectBadRequest)
-		}
-
-		err = c.Subscribe(NEW_PRIVATE_CHANNEL)
-		if err != nil {
-			log.Printf("User cannot subscribe to notification channel\n%s", err)
 		}
 
 		handler.handleClientCallbacks(c)

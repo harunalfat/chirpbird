@@ -33,9 +33,13 @@ export class AppComponent implements OnInit {
       this.channels = this.storedUserService.getAllChannels();
 
       if (!this.initiated) {
-        this.socketService.subscribe<Channel>('NEW_PRIVATE_CHANNEL', async (wrapper) => {
-          await this.storedUserService.addChannel(wrapper.data, wrapper.data.creatorId, true)
-          this.channels = this.storedUserService.getAllChannels();
+        this.socketService.subscribeServer<Channel>(async (ctx) => {
+          console.log(ctx)
+          if (ctx.channel !== "SERVER_NOTIFICATION") return
+          if (ctx.data.participants.find(ptcp => ptcp.id === this.storedUserService.getStoredUser().id)) {
+            await this.storedUserService.addChannel(ctx.data, ctx.data.creatorId, true)
+            this.channels = this.storedUserService.getAllChannels();
+          }
         })
       }
       this.initiated = true
@@ -47,7 +51,16 @@ export class AppComponent implements OnInit {
     this.dialogRef.afterClosed().subscribe(async feedBack => {
       if (!feedBack?.channelName) return;
       const user = this.storedUserService.getStoredUser()
-      const channel = await this.storedUserService.addChannel(feedBack.channelName, user.id, false);
+      const channelArg: Channel = {
+        name: feedBack.channelName,
+        creatorId: user.id,
+        isNewlyAdded: true,
+        createdAt: new Date(),
+        hashIdentifier: "",
+        isPrivate: false,
+        participants: [],
+      }
+      const channel = await this.storedUserService.addChannel(channelArg, user.id, false);
       if (!channel) return
 
       this.channels = this.storedUserService.getAllChannels();
