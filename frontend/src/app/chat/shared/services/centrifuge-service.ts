@@ -48,7 +48,7 @@ export class CentrifugeService implements ISocketService {
         const url = this.BASE_URL + `?userId=${token}`;
         this.centrifuge = new Centrifuge(url, {
             debug: true,
-            timeout: 50,
+            timeout: 3000,
         });
         this.centrifuge.connect();
         await this.waitForNodeConnected()
