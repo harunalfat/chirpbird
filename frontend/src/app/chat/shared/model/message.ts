@@ -17,7 +17,7 @@ export interface ServerEventWrapper<T> {
         user: string
         client: string
     }
-    channel: string
+    channel?: string
     offset?: number
     seq?: number
 }

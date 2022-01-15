@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 
 	"github.com/gin-contrib/cors"
@@ -33,6 +34,9 @@ func (app *App) run() {
 
 	router.GET("/connection/websocket", gin.WrapF(app.wsHandler.Serve))
 
+	router.GET("/ping", gin.WrapF(func(rw http.ResponseWriter, r *http.Request) {
+		rw.Write([]byte("pong"))
+	}))
 	router.POST("/users", gin.WrapF(app.restHandler.RegisterUser))
 	router.POST("/channels", gin.WrapF(app.restHandler.CreateChannel))
 

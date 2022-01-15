@@ -3,7 +3,6 @@ package handlers
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -290,9 +289,6 @@ func (handler *WSHandler) setupRedisAdapter() (err error) {
 
 func (handler *WSHandler) Init() (err error) {
 	handler.node.OnConnecting(func(c context.Context, ce centrifuge.ConnectEvent) (centrifuge.ConnectReply, error) {
-		fmt.Println(ce.Token)
-		fmt.Println("AMAAN")
-
 		return centrifuge.ConnectReply{}, nil
 	})
 	handler.node.OnConnect(func(c *centrifuge.Client) {

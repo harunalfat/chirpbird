@@ -1,3 +1,2 @@
-FROM nginx:1.21.5-alpine
-RUN rm /etc/nginx/conf.d/default.conf
-COPY load-balance.conf /etc/nginx/conf.d/default.conf
+FROM haproxy:2.2.20-alpine
+COPY haproxy.cfg /usr/local/etc/haproxy/haproxy.cfg

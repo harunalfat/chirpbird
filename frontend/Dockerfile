@@ -6,7 +6,7 @@ COPY package-lock.json .
 COPY package.json .
 
 RUN npm install
-COPY src/environments src/environments
+COPY src/environments .
 ADD . .
 
 RUN npm run build
