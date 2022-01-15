@@ -5,11 +5,10 @@ WORKDIR /app
 COPY package-lock.json .
 COPY package.json .
 
-RUN npm install
-COPY src/environments .
+RUN yarn install
 ADD . .
 
-RUN npm run build
+RUN yarn build --configuration=production
 
 FROM httpd:2.4-alpine
 COPY --from=buildNode /app/dist/client /usr/local/apache2/htdocs/

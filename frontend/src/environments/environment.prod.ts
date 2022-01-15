@@ -1,5 +1,5 @@
 export const environment = {
   production: true,
-  backendUrl: 'http://localhost',
-  backendWsUrl: 'ws://localhost/connection/websocket',
+  backendUrl: 'https://harunalfat.site',
+  backendWsUrl: 'wss://harunalfat.site/connection/websocket',
 };
