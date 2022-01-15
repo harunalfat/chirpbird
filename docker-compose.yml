@@ -122,14 +122,3 @@ services:
       - '8000:80'
     networks:
       - app-net
-
-  statics:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile_deploy
-    depends_on:
-      - load-balancer
-    ports:
-      - '4000:80'
-    networks:
-      - app-net
