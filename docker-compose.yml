@@ -23,18 +23,27 @@ services:
   redis-sentinel1:
     build: 
       context: ./redis-sentinel-setup
+    depends_on:
+      - redis1
+      - redis2
     networks:
       - app-net
   
   redis-sentinel2:
     build: 
       context: ./redis-sentinel-setup
+    depends_on:
+      - redis1
+      - redis2
     networks:
       - app-net
 
   redis-sentinel3:
     build: 
       context: ./redis-sentinel-setup
+    depends_on:
+      - redis1
+      - redis2
     networks:
       - app-net
 
@@ -64,10 +73,14 @@ services:
 
   mongodb-configer:
     build: "./mongo-setup"
+    depends_on:
+      - mongodb1
+      - mongodb2
+      - mongodb3
     networks:
       - app-net
 
-  go-svc:
+  backend1:
     build: ./backend
     environment:
       - PORT=8000
@@ -75,16 +88,41 @@ services:
       - REDIS_SENTINEL_ADDRESSES=redis-sentinel1:26379,redis-sentinel2:26379,redis-sentinel3:26379
       - REDIS_MASTER_NAME=redismaster
       - MONGODB_CONN_URL=mongodb://mongodb1:27017,mongodb://mongodb2:27017,mongodb://mongodb3:27017
+    depends_on:
+      - redis-sentinel1
+      - mongodb-configer
+    networks:
+      - app-net
+
+  backend2:
+    build: ./backend
+    environment:
+      - PORT=8000
+      - REDIS_ADDRESS=redis1:6379
+      - REDIS_SENTINEL_ADDRESSES=redis-sentinel1:26379,redis-sentinel2:26379,redis-sentinel3:26379
+      - REDIS_MASTER_NAME=redismaster
+      - MONGODB_CONN_URL=mongodb://mongodb1:27017,mongodb://mongodb2:27017,mongodb://mongodb3:27017
+    depends_on:
+      - redis-sentinel1
+      - mongodb-configer
+    networks:
+      - app-net
+
+  load-balancer:
+    build: ./load-balancer
+    depends_on:
+      - backend1
+      - backend2
     ports:
-      - '8000:8000'
+      - '8000:80'
     networks:
       - app-net
 
   statics:
     build: ./frontend
     depends_on:
-      - go-svc
+      - load-balancer
     ports:
-      - '4200:80'
+      - '4000:80'
     networks:
       - app-net
