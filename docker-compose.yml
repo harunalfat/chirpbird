@@ -7,16 +7,12 @@ networks:
 services:
   redis1:
     image: redis:6.2.6-alpine
-    ports:
-      - '6379:6379'
     networks:
       - app-net
 
   redis2:
     image: redis:6.2.6-alpine
     command: redis-server --slaveof redis1 6379
-    ports:
-      - '6380:6379'
     networks:
       - app-net
 
@@ -49,24 +45,18 @@ services:
 
   mongodb1:
     image: 'mongo:5.0-focal'
-    ports:
-      - '27018:27017'
     entrypoint: [ "/usr/bin/mongod", "--replSet", "rsmongo", "--bind_ip_all"]
     networks:
       - app-net
 
   mongodb2:
     image: 'mongo:5.0-focal'
-    ports:
-      - '27019:27017'
     entrypoint: [ "/usr/bin/mongod", "--replSet", "rsmongo", "--bind_ip_all"]
     networks:
       - app-net
 
   mongodb3:
     image: 'mongo:5.0-focal'
-    ports:
-      - '27020:27017'
     entrypoint: [ "/usr/bin/mongod", "--replSet", "rsmongo", "--bind_ip_all"]
     networks:
       - app-net

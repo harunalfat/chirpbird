@@ -34,7 +34,6 @@ export class AppComponent implements OnInit {
 
       if (!this.initiated) {
         this.socketService.subscribeServer<Channel>(async (ctx) => {
-          console.log(ctx)
           if (ctx.channel !== "SERVER_NOTIFICATION") return
           if (ctx.data.participants.find(ptcp => ptcp.id === this.storedUserService.getStoredUser().id)) {
             await this.storedUserService.addChannel(ctx.data, ctx.data.creatorId, true)
