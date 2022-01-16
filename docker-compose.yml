@@ -98,6 +98,20 @@ services:
     networks:
       - app-net
 
+  backend3:
+    build: ./backend
+    environment:
+      - PORT=8000
+      - REDIS_ADDRESS=redis1:6379
+      - REDIS_SENTINEL_ADDRESSES=redis-sentinel1:26379,redis-sentinel2:26379,redis-sentinel3:26379
+      - REDIS_MASTER_NAME=redismaster
+      - MONGODB_CONN_URL=mongodb://mongodb1:27017,mongodb://mongodb2:27017,mongodb://mongodb3:27017
+    depends_on:
+      - redis-sentinel1
+      - mongodb-configer
+    networks:
+      - app-net
+
   load-balancer:
     build: ./load-balancer
     depends_on:

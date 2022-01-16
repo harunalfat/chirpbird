@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/harunalfat/chirpbird/backend/entities"
@@ -69,7 +70,7 @@ func (uc *ChannelUseCase) CreateIfNameNotExist(ctx context.Context, channel enti
 	if result.Name == "" {
 		channel.CreatorID = creator.ID
 		channel.CreatedAt = time.Now()
-		hash := sha256.Sum256([]byte(channel.Name))
+		hash := sha256.Sum256([]byte(strings.ToLower(channel.Name)))
 		channel.HashIdentifier = fmt.Sprintf("%x", hash[:])
 
 		result, err = uc.channelRepo.Insert(ctx, channel)
