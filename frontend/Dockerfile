@@ -8,7 +8,7 @@ COPY package.json .
 RUN yarn install
 ADD . .
 
-RUN yarn build --configuration=production
+RUN yarn build --configuration=docker
 
 FROM httpd:2.4-alpine
 COPY --from=buildNode /app/dist/client /usr/local/apache2/htdocs/

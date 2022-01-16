@@ -109,3 +109,4 @@ For how to run Mongodb replica set, [this guide](https://docs.mongodb.com/manual
 - [API Documentation for client integration](API.md)
 - [Entity Schema](schema.md)
 - [Failsafe Mechanism](failsafe.md)
+- [Deployment](deployment.md)

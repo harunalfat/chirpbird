@@ -1,65 +1,90 @@
 version: '2'
 
-networks:
-  app-net:
-    driver: bridge
-
 services:
   redis1:
     image: redis:6.2.6-alpine
-    networks:
-      - app-net
+    command: redis-server --port 6380
+    ports:
+      - '6380:6380'
 
   redis2:
     image: redis:6.2.6-alpine
-    command: redis-server --slaveof redis1 6379
-    networks:
-      - app-net
+    command: redis-server --slaveof ${HOST_DOCKER_INTERNAL_IP} 6380 --port 6381 --slave-announce-ip ${HOST_DOCKER_INTERNAL_IP}
+    depends_on:
+      - redis1
+    ports:
+      - '6381:6381'
+
+  redis3:
+    image: redis:6.2.6-alpine
+    command: redis-server --slaveof ${HOST_DOCKER_INTERNAL_IP} 6380 --port 6382 --slave-announce-ip ${HOST_DOCKER_INTERNAL_IP}
+    depends_on:
+      - redis1
+    ports:
+      - '6382:6382'
 
   redis-sentinel1:
-    build: 
-      context: ./redis-sentinel-setup
+    image: bitnami/redis-sentinel:6.2
+    environment:
+      - REDIS_MASTER_HOST=${HOST_DOCKER_INTERNAL_IP}
+      - REDIS_MASTER_PORT_NUMBER=6380
+      - REDIS_SENTINEL_DOWN_AFTER_MILLISECONDS=10000
+      - REDIS_SENTINEL_FAILOVER_TIMEOUT=5000
+      - REDIS_SENTINEL_QUORUM=2
+      - REDIS_SENTINEL_PORT_NUMBER=26379
+      - REDIS_SENTINEL_ANNOUNCE_IP=${HOST_DOCKER_INTERNAL_IP}
     depends_on:
       - redis1
       - redis2
-    networks:
-      - app-net
-  
+      - redis3
+    ports:
+      - '26379:26379'
+
   redis-sentinel2:
-    build: 
-      context: ./redis-sentinel-setup
+    image: bitnami/redis-sentinel:6.2
+    environment:
+      - REDIS_MASTER_HOST=${HOST_DOCKER_INTERNAL_IP}
+      - REDIS_MASTER_PORT_NUMBER=6380
+      - REDIS_SENTINEL_DOWN_AFTER_MILLISECONDS=10000
+      - REDIS_SENTINEL_FAILOVER_TIMEOUT=5000
+      - REDIS_SENTINEL_QUORUM=2
+      - REDIS_SENTINEL_PORT_NUMBER=26380
+      - REDIS_SENTINEL_ANNOUNCE_IP=${HOST_DOCKER_INTERNAL_IP}
     depends_on:
       - redis1
       - redis2
-    networks:
-      - app-net
+      - redis3
+    ports:
+      - '26380:26380'
 
   redis-sentinel3:
-    build: 
-      context: ./redis-sentinel-setup
+    image: bitnami/redis-sentinel:6.2
+    environment:
+      - REDIS_MASTER_HOST=${HOST_DOCKER_INTERNAL_IP}
+      - REDIS_MASTER_PORT_NUMBER=6380
+      - REDIS_SENTINEL_DOWN_AFTER_MILLISECONDS=10000
+      - REDIS_SENTINEL_FAILOVER_TIMEOUT=5000
+      - REDIS_SENTINEL_QUORUM=2
+      - REDIS_SENTINEL_PORT_NUMBER=26381
+      - REDIS_SENTINEL_ANNOUNCE_IP=${HOST_DOCKER_INTERNAL_IP}
     depends_on:
       - redis1
       - redis2
-    networks:
-      - app-net
+      - redis3
+    ports:
+      - '26381:26381'
 
   mongodb1:
     image: 'mongo:5.0-focal'
-    entrypoint: [ "/usr/bin/mongod", "--replSet", "rsmongo", "--bind_ip_all"]
-    networks:
-      - app-net
+    entrypoint: [ "/usr/bin/mongod", "--port", "27017", "--replSet", "rsmongo", "--bind_ip_all"]
 
   mongodb2:
     image: 'mongo:5.0-focal'
-    entrypoint: [ "/usr/bin/mongod", "--replSet", "rsmongo", "--bind_ip_all"]
-    networks:
-      - app-net
+    entrypoint: [ "/usr/bin/mongod", "--port", "27017", "--replSet", "rsmongo", "--bind_ip_all"]
 
   mongodb3:
     image: 'mongo:5.0-focal'
-    entrypoint: [ "/usr/bin/mongod", "--replSet", "rsmongo", "--bind_ip_all"]
-    networks:
-      - app-net
+    entrypoint: [ "/usr/bin/mongod", "--port", "27017", "--replSet", "rsmongo", "--bind_ip_all"]
 
   mongodb-configer:
     build: "./mongo-setup"
@@ -67,60 +92,54 @@ services:
       - mongodb1
       - mongodb2
       - mongodb3
-    networks:
-      - app-net
 
   backend1:
     build: ./backend
     environment:
       - PORT=8000
-      - REDIS_ADDRESS=redis1:6379
-      - REDIS_SENTINEL_ADDRESSES=redis-sentinel1:26379,redis-sentinel2:26379,redis-sentinel3:26379
-      - REDIS_MASTER_NAME=redismaster
-      - MONGODB_CONN_URL=mongodb://mongodb1:27017,mongodb://mongodb2:27017,mongodb://mongodb3:27017
+      - REDIS_SENTINEL_ADDRESSES=${HOST_DOCKER_INTERNAL_IP}:26379,${HOST_DOCKER_INTERNAL_IP}:26380,${HOST_DOCKER_INTERNAL_IP}:26381
+      - REDIS_MASTER_NAME=mymaster
+      - MONGODB_CONN_URI=mongodb://mongodb1:27017,mongodb://mongodb2:27018,mongodb://mongodb3:27019
     depends_on:
       - redis-sentinel1
+      - redis-sentinel2
+      - redis-sentinel3
       - mongodb-configer
-    networks:
-      - app-net
 
   backend2:
     build: ./backend
     environment:
       - PORT=8000
-      - REDIS_ADDRESS=redis1:6379
-      - REDIS_SENTINEL_ADDRESSES=redis-sentinel1:26379,redis-sentinel2:26379,redis-sentinel3:26379
-      - REDIS_MASTER_NAME=redismaster
-      - MONGODB_CONN_URL=mongodb://mongodb1:27017,mongodb://mongodb2:27017,mongodb://mongodb3:27017
+      - REDIS_SENTINEL_ADDRESSES=${HOST_DOCKER_INTERNAL_IP}:26379,${HOST_DOCKER_INTERNAL_IP}:26380,${HOST_DOCKER_INTERNAL_IP}:26381
+      - REDIS_MASTER_NAME=mymaster
+      - MONGODB_CONN_URI=mongodb://mongodb1:27017,mongodb://mongodb2:27018,mongodb://mongodb3:27019
     depends_on:
       - redis-sentinel1
+      - redis-sentinel2
+      - redis-sentinel3
       - mongodb-configer
-    networks:
-      - app-net
 
   backend3:
     build: ./backend
     environment:
       - PORT=8000
-      - REDIS_ADDRESS=redis1:6379
-      - REDIS_SENTINEL_ADDRESSES=redis-sentinel1:26379,redis-sentinel2:26379,redis-sentinel3:26379
-      - REDIS_MASTER_NAME=redismaster
-      - MONGODB_CONN_URL=mongodb://mongodb1:27017,mongodb://mongodb2:27017,mongodb://mongodb3:27017
+      - REDIS_SENTINEL_ADDRESSES=${HOST_DOCKER_INTERNAL_IP}:26379,${HOST_DOCKER_INTERNAL_IP}:26380,${HOST_DOCKER_INTERNAL_IP}:26381
+      - REDIS_MASTER_NAME=mymaster
+      - MONGODB_CONN_URI=mongodb://mongodb1:27017,mongodb://mongodb2:27018,mongodb://mongodb3:27019
     depends_on:
       - redis-sentinel1
+      - redis-sentinel2
+      - redis-sentinel3
       - mongodb-configer
-    networks:
-      - app-net
 
   load-balancer:
     build: ./load-balancer
     depends_on:
       - backend1
       - backend2
+      - backend3
     ports:
       - '8000:80'
-    networks:
-      - app-net
 
   statics:
     build: ./frontend
@@ -128,5 +147,3 @@ services:
       - load-balancer
     ports:
       - '4000:80'
-    networks:
-      - app-net

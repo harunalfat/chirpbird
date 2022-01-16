@@ -72,7 +72,7 @@ var MONGO_INDEXES = map[string]map[string]*mongo.IndexModel{
 }
 
 func newMongoClient() *mongo.Client {
-	clientOps := options.Client().ApplyURI(os.Getenv(env.MONGODB_CONN_URL))
+	clientOps := options.Client().ApplyURI(os.Getenv(env.MONGODB_CONN_URI))
 	client, err := mongo.Connect(context.Background(), clientOps)
 	if err != nil {
 		log.Fatalf("Cannot connect to mongo instance\n%s", err)

@@ -1,5 +1,4 @@
 tmp/
-.env
 *.log
 *.rdb
 *.pem

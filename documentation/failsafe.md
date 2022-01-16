@@ -68,21 +68,34 @@ I provide a [Docker compose file](../docker-compose.yml) that can in a way, mode
 We have `redis1` and `redis2` services, that run as a redis server. But with `redis2`, we put the command
 
 ```
-redis-server --slaveof redis1 6379
+redis-server --slaveof ${HOST_DOCKER_INTERNAL_IP} 6380
 ```
-to make it run as slave of `redis1`. Next we have three redis sentinel services, configured with this file
-```
-port 26379
+to make it run as slave of `redis1`. Because of how the way Redis sentinel working and mapping each slave using IP address and port, it is not possible to use hostname in docker for sentinel ([look into this](https://redis.io/topics/sentinel#sentinel-docker-nat-and-possible-issues)), so we need to port forward each redis to different port, and access it using our host IP from the container. Using `ifconfig` for linux, can figure out that IP address.
 
-dir /tmp
+![picture](picture1.jpg)
 
-sentinel resolve-hostnames yes
-sentinel monitor redismaster redis1 6379 2
-sentinel down-after-milliseconds redismaster 1000
-sentinel parallel-syncs redismaster 1
-sentinel failover-timeout redismaster 1000
+Next we have three redis sentinel services, configured as this
 ```
-This makes sentinel services monitor current master (`redis1`), and from the master itself, the sentinels can figure out which other redis currently run as replica of that master. You can try to run `docker-compose up` and kill the `redis1` container, take a look at the logging and you will see the process of new master selection. Client (browser) may disconnect and reconnected again.
+redis-sentinel1:
+    image: bitnami/redis-sentinel:6.2
+    environment:
+      - REDIS_MASTER_HOST=${HOST_DOCKER_INTERNAL_IP}
+      - REDIS_MASTER_PORT_NUMBER=6380
+      - REDIS_SENTINEL_DOWN_AFTER_MILLISECONDS=10000
+      - REDIS_SENTINEL_FAILOVER_TIMEOUT=5000
+      - REDIS_SENTINEL_QUORUM=2
+      - REDIS_SENTINEL_PORT_NUMBER=26379
+      - REDIS_SENTINEL_ANNOUNCE_IP=${HOST_DOCKER_INTERNAL_IP}
+    depends_on:
+      - redis1
+      - redis2
+      - redis3
+    ports:
+      - '26379:26379'
+```
+This makes sentinel services monitor current master (`redis1`), and from the master itself, the sentinels can figure out which other redis currently run as replica of that master. 
+
+Before playing around with the docker compose, please change the value on `.env` file within the root of this repository with your host docker internal IP. Next, you can try to run `docker-compose up` and kill the `redis1` container, take a look at the logging and you will see the process of new master selection. Client (browser) may disconnect and reconnected again.
 
 Other service is `mongodb1`, `mongodb2`, and `mongodb3`. Each run as replica set with command
 ```
@@ -92,4 +105,4 @@ and one additional service that function as a mongoclient that will feed the `mo
 
 Same with Redis, you can try to turned down some mongodb container, and make sure the app still works as expected.
 
-And to demonstrate the backend app itself, just kill one container of `backend` and clients that are connected to that node will reconnected again to new node that still serving connection
+And to demonstrate the backend app itself, just kill some containers of `backend` and clients that are connected to that node will reconnected again to new node that still serving connection

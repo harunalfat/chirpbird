@@ -1,7 +1,7 @@
 package env
 
 const (
-	MONGODB_CONN_URL         = "MONGODB_CONN_URL"
+	MONGODB_CONN_URI         = "MONGODB_CONN_URI"
 	PORT                     = "PORT"
 	REDIS_ADDRESS            = "REDIS_ADDRESS"
 	REDIS_PASSWORD           = "REDIS_PASSWORD"
