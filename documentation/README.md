@@ -101,8 +101,11 @@ Mongodb can also run with replica, with a lot less complexity than Redis. By def
 options.Client().ApplyURI("mongodb://localhost:27017,mongodb://localhost:27018")
 ```
 
+At the architectural diagram, the replica set drawed as one set for simplicity.
+
 For how to run Mongodb replica set, [this guide](https://docs.mongodb.com/manual/tutorial/deploy-replica-set/) will help.
 
 ## More on the project
 - [API Documentation for client integration](API.md)
 - [Entity Schema](schema.md)
+- [Failsafe Mechanism](failsafe.md)
