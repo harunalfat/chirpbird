@@ -73,8 +73,8 @@ redisPresenceManager, _ := centrifuge.NewRedisPresenceManager(centrifugeNode, ce
     Shards: []*centrifuge.RedisShard{replica},
 })
 
-node.SetBroker(redisBroker)
-node.SetPresenceManager(redisPresenceManager)
+centrifugeNode.SetBroker(redisBroker)
+centrifugeNode.SetPresenceManager(redisPresenceManager)
 ```
 
 Redis sentinel can run on the client node, on the redis server node, or a single node sentinel itself. It doesn't matter, as long the minimum living sentinel is two. I've provided new diagram, hopefully making it simpler.

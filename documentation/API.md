@@ -209,7 +209,7 @@ instance.on("message", func(ctx) { // <--- Please note, it listen from "instance
     if (ctx.channel === "NEW_CHANNEL") { // <--- Please note, ctx.channel here
         // is the naming schema of Centrifuge to let client know
         // what context the server message are,
-        // it not related to the "group chat" channel id
+        // it is not related to the "group chat" channel
 
         const newAnnouncedChannel = ctx.data;
         const subscription = instance.subscribe(newAnnouncedChannel.id)
