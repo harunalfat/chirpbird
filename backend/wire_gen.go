@@ -11,6 +11,7 @@ import (
 	"github.com/harunalfat/chirpbird/backend/presentation/web/handlers"
 	"github.com/harunalfat/chirpbird/backend/use_cases"
 	"go.mongodb.org/mongo-driver/mongo"
+	"net/http"
 )
 
 // Injectors from wire.go:
@@ -29,9 +30,11 @@ func NewApp(mongoClient *mongo.Client) (*App, error) {
 	userUseCase := usecases.NewUserUseCase(channelUseCase, nodeWrapper, userRepository)
 	restHandler := handlers.NewRestHandler(channelUseCase, messageUseCase, userUseCase)
 	wsHandler := handlers.NewWSHandler(channelUseCase, messageUseCase, node, userUseCase)
+	server := &http.Server{}
 	app := &App{
 		restHandler: restHandler,
 		wsHandler:   wsHandler,
+		httpSrv:     server,
 	}
 	return app, nil
 }

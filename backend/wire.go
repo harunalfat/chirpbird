@@ -10,11 +10,13 @@ import (
 	"github.com/harunalfat/chirpbird/backend/presentation/web/handlers"
 	usecases "github.com/harunalfat/chirpbird/backend/use_cases"
 	"go.mongodb.org/mongo-driver/mongo"
+	"net/http"
 )
 
 func NewApp(mongoClient *mongo.Client) (*App, error) {
 	wire.Build(
 		wire.Struct(new(App), "*"),
+		wire.Struct(new(http.Server)),
 		handlers.NewRestHandler,
 		handlers.NewWSHandler,
 		handlers.NewCentrifugeNode,

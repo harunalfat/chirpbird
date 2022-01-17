@@ -32,6 +32,8 @@ type WSHandler struct {
 	messageUseCase *usecases.MessageUseCase
 	node           *centrifuge.Node
 	userUseCase    *usecases.UserUseCase
+
+	shutdownChannel chan struct{}
 }
 
 func NewCentrifugeNode() (*centrifuge.Node, error) {
@@ -44,6 +46,7 @@ func NewWSHandler(channelUseCase *usecases.ChannelUseCase, messageUseCase *useca
 		messageUseCase,
 		node,
 		userUseCase,
+		make(chan struct{}),
 	}
 }
 
@@ -75,15 +78,21 @@ func (handler *WSHandler) newConnectionProcedure(c *centrifuge.Client) error {
 	return nil
 }
 
-func (handler *WSHandler) handleClientCallbacks(c *centrifuge.Client) {
-	err := c.Send([]byte(`{"hello": "world"}`))
+func (handler *WSHandler) handleClient(c *centrifuge.Client) {
+	userID := c.UserID()
+	_, err := handler.userUseCase.Fetch(c.Context(), userID)
 	if err != nil {
 		log.Println(err)
+		c.Disconnect(centrifuge.DisconnectBadRequest)
 	}
+
+	log.Printf("Successfully open connection for client [%s]", userID)
+
 	err = c.Subscribe(SERVER_NOTIFICATION)
 	if err != nil {
 		log.Printf("Failed to add client for server side notif\n%s", err)
 	}
+
 	c.OnSubscribe(func(se centrifuge.SubscribeEvent, sc centrifuge.SubscribeCallback) {
 		log.Printf("Subscribe from user: %s, data: %s, channel: %s", c.UserID(), string(se.Data), se.Channel)
 		sc(centrifuge.SubscribeReply{
@@ -97,14 +106,13 @@ func (handler *WSHandler) handleClientCallbacks(c *centrifuge.Client) {
 	})
 
 	c.OnMessage(func(me centrifuge.MessageEvent) {
-		log.Printf("Received echo message [%s] from [%s]", string(me.Data), c.UserID())
+		log.Printf("Received client to server message [%s] from [%s]", string(me.Data), c.UserID())
 
 		var payload entities.Channel
 		err = json.Unmarshal(me.Data, &payload)
 		if err != nil {
 			return
 		}
-		log.Println(payload)
 
 		if !payload.IsPrivate {
 			return
@@ -292,12 +300,7 @@ func (handler *WSHandler) Init() (err error) {
 		return centrifuge.ConnectReply{}, nil
 	})
 	handler.node.OnConnect(func(c *centrifuge.Client) {
-		if err = handler.newConnectionProcedure(c); err != nil {
-			log.Println(err)
-			c.Disconnect(centrifuge.DisconnectBadRequest)
-		}
-
-		handler.handleClientCallbacks(c)
+		handler.handleClient(c)
 	})
 
 	if err = handler.setupRedisAdapter(); err != nil {
@@ -314,4 +317,13 @@ func (handler *WSHandler) Init() (err error) {
 		},
 	})
 	return nil
+}
+
+func (handler *WSHandler) Shutdown(ctx context.Context) (err error) {
+	err = handler.node.Shutdown(ctx)
+	if err != nil {
+		log.Printf("Failed when shutdown\n%s", err)
+	}
+
+	return
 }

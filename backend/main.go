@@ -1,46 +1,21 @@
 package main
 
 import (
-	"fmt"
 	"log"
-	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
-	"github.com/gin-contrib/cors"
-	"github.com/gin-gonic/gin"
-	"github.com/harunalfat/chirpbird/backend/env"
+	"context"
+
 	"github.com/harunalfat/chirpbird/backend/presentation/persistence"
-	"github.com/harunalfat/chirpbird/backend/presentation/web/handlers"
 	"github.com/joho/godotenv"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
-type App struct {
-	restHandler *handlers.RestHandler
-	wsHandler   *handlers.WSHandler
-}
-
-func (app *App) run() {
-	app.wsHandler.Init()
-	router := gin.Default()
-
-	router.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"*"},
-		AllowCredentials: true,
-		AllowHeaders:     []string{"Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With"},
-	}))
-
-	// serve static assets
-	//router.StaticFS("/statics", http.Dir("../frontend/dist/client"))
-
-	router.GET("/connection/websocket", gin.WrapF(app.wsHandler.Serve))
-
-	router.GET("/ping", gin.WrapF(func(rw http.ResponseWriter, r *http.Request) {
-		rw.Write([]byte("pong"))
-	}))
-	router.POST("/users", gin.WrapF(app.restHandler.RegisterUser))
-	router.POST("/channels", gin.WrapF(app.restHandler.CreateChannel))
-
-	router.Run(fmt.Sprintf(":%s", os.Getenv(env.PORT)))
+func Shutdown(ctx context.Context, app *App, mongoClient *mongo.Client) error {
+	return app.Shutdown(ctx)
 }
 
 func main() {
@@ -56,5 +31,18 @@ func main() {
 		log.Fatalf("Failed to prepare application\n%s", err)
 	}
 
-	app.run()
+	done := make(chan os.Signal, 1)
+	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+
+	app.Run()
+
+	<-done
+	log.Println("Shutting down server")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := app.Shutdown(ctx); err != nil {
+		log.Fatalf("Failed to shutdown gracefully")
+	}
+	log.Println("Server shutting down")
 }
